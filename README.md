@@ -1,11 +1,11 @@
-#Intermediate_Winter_2026_Team 4
+# Intermediate_Winter_2026_Team 4
 
-##Team Members
+## Team Members
 
-##Project Overview
+## Project Overview
 TBD
 
-##Stand-up Schedule
+## Stand-up Schedule
 TBD
 
-##Features
+## Features
