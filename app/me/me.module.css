@@ -1,0 +1,15 @@
+.page {
+  background: #f5f4f1;
+  min-height: 100vh;
+  padding: 40px 48px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.title { margin: 0; font-size: 30px; font-weight: 700; color: #1e3a8a; }
+.subtitle { margin: -16px 0 0 0; font-size: 14px; color: #6b7280; }
+
+@media (max-width: 600px) {
+  .page { padding: 24px 16px; }
+}
