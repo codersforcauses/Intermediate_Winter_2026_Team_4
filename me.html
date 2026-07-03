@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>My Profile – CFC Project</title>
+  <link rel="stylesheet" href="me.css" />
+</head>
+<body>
+
+  <main class="page">
+    <h1 class="page-title">My profile</h1>
+    <p class="page-subtitle">Manage your saved jobs and searches</p>
+
+    <!-- Profile card: avatar, name, email, stat tiles -->
+    <div class="profile-card">
+      <div class="avatar" id="avatar-initials"></div>
+
+      <div class="profile-details">
+        <p class="profile-name" id="profile-name"></p>
+        <p class="profile-email" id="profile-email"></p>
+      </div>
+
+      <div class="stats-row">
+        <div class="stat-tile">
+          <p class="stat-value" id="stat-jobs"></p>
+          <p class="stat-label">Saved jobs</p>
+        </div>
+        <div class="stat-tile">
+          <p class="stat-value" id="stat-searches"></p>
+          <p class="stat-label">Saved searches</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tabs -->
+    <div class="tab-list">
+      <button class="tab-button tab-active" id="tab-jobs-btn" onclick="switchTab('jobs')">
+        ⭐ Saved Jobs (<span id="tab-jobs-count"></span>)
+      </button>
+      <button class="tab-button" id="tab-searches-btn" onclick="switchTab('searches')">
+        🔖 Saved Searches (<span id="tab-searches-count"></span>)
+      </button>
+    </div>
+
+    <!-- Saved Jobs list -->
+    <div id="tab-jobs-content" class="tab-content">
+      <!-- Job cards injected here by JavaScript -->
+    </div>
+
+    <!-- Saved Searches list (hidden by default) -->
+    <div id="tab-searches-content" class="tab-content" style="display: none;">
+      <!-- Search cards injected here by JavaScript -->
+    </div>
+
+  </main>
+
+  <script src="me.js"></script>
+</body>
+</html>

@@ -1,0 +1,270 @@
+/* =============================================
+   Global reset & base styles
+   ============================================= */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  background: #f5f4f1;
+  color: #1a1a1a;
+}
+
+/* =============================================
+   Page layout
+   ============================================= */
+.page {
+  max-width: 860px;
+  margin: 0 auto;
+  padding: 40px 48px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.page-title {
+  font-size: 30px;
+  font-weight: 700;
+  color: #1e3a8a;
+}
+
+.page-subtitle {
+  margin-top: -16px;
+  font-size: 14px;
+  color: #6b7280;
+}
+
+/* =============================================
+   Profile card
+   ============================================= */
+.profile-card {
+  background: #ffffff;
+  border: 1px solid #e9e9e7;
+  border-radius: 12px;
+  padding: 28px;
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+
+.avatar {
+  width: 64px;
+  height: 64px;
+  min-width: 64px;
+  border-radius: 50%;
+  background: #dce3f7;
+  color: #1e3a8a;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.profile-details {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+}
+
+.profile-name {
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.profile-email {
+  font-size: 14px;
+  color: #6b7280;
+}
+
+.stats-row {
+  display: flex;
+  gap: 12px;
+}
+
+.stat-tile {
+  background: #eceae5;
+  border-radius: 10px;
+  padding: 14px 24px;
+  text-align: center;
+  min-width: 90px;
+}
+
+.stat-value {
+  font-size: 22px;
+  font-weight: 700;
+  color: #1e3a8a;
+}
+
+.stat-label {
+  font-size: 12px;
+  color: #6b7280;
+  margin-top: 4px;
+}
+
+/* =============================================
+   Tabs
+   ============================================= */
+.tab-list {
+  display: flex;
+  gap: 28px;
+  border-bottom: 1px solid #e2e2e0;
+}
+
+.tab-button {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 15px;
+  font-weight: 600;
+  color: #6b7280;
+  padding: 0 0 12px 0;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px; /* sit on top of the tab-list border */
+}
+
+.tab-button.tab-active {
+  color: #1a1a1a;
+  border-bottom: 2px solid #1e3a8a;
+}
+
+/* =============================================
+   Job cards
+   ============================================= */
+.tab-content {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.job-card {
+  background: #ffffff;
+  border: 1px solid #e9e9e7;
+  border-radius: 12px;
+  padding: 20px 24px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.job-main {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.job-title-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.job-title {
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.job-tag {
+  background: #dce3f7;
+  color: #1e3a8a;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 3px 10px;
+  border-radius: 999px;
+}
+
+.job-meta {
+  font-size: 13px;
+  color: #6b7280;
+}
+
+.job-salary {
+  font-size: 15px;
+  font-weight: 700;
+  color: #1e3a8a;
+}
+
+.job-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 10px;
+}
+
+.star {
+  color: #d4a017;
+  font-size: 18px;
+}
+
+.view-button {
+  background: #ffffff;
+  border: 1px solid #d8d8d6;
+  border-radius: 8px;
+  padding: 6px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #1a1a1a;
+  text-decoration: none;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.view-button:hover {
+  background: #f5f5f4;
+}
+
+/* =============================================
+   Search cards
+   ============================================= */
+.search-card {
+  background: #ffffff;
+  border: 1px solid #e9e9e7;
+  border-radius: 12px;
+  padding: 20px 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.search-query {
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.search-meta {
+  font-size: 13px;
+  color: #6b7280;
+  margin-top: 4px;
+}
+
+/* =============================================
+   Mobile
+   ============================================= */
+@media (max-width: 600px) {
+  .page {
+    padding: 24px 16px;
+  }
+
+  .profile-card {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .stats-row {
+    width: 100%;
+  }
+
+  .stat-tile {
+    flex: 1;
+  }
+}
