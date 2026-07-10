@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 
 const SKILLS = ["All", "#Python", "#Java", "#JavaScript", "#React", "#Django"];
 
@@ -20,47 +21,35 @@ const DEMAND_LINES = [
   { label: "Django", color: "#10b981", points: "0,90 40,82 80,74 120,66 160,58 200,50" },
 ];
 
-function NavItem({ label, active = false }: { label: string; active?: boolean }) {
-  return (
-    <div
-      className={`px-3 py-2 rounded-lg text-sm cursor-pointer transition-colors ${
-        active
-          ? "bg-accent-soft text-accent font-semibold"
-          : "text-muted hover:bg-surface-2"
-      }`}
-    >
-      {label}
-    </div>
-  );
-}
-
 function Sidebar() {
   return (
-    <aside className="w-56 min-h-screen bg-surface border-r border-line flex flex-col shrink-0">
-      <div className="px-6 py-6">
-        <p className="font-bold text-accent text-base leading-tight">CFC Project</p>
-        <p className="text-muted text-xs mt-1">Job market insights</p>
+    <aside className="w-[220px] min-h-screen bg-surface border-r border-line flex flex-col shrink-0">
+      <div className="px-[18px] py-5 border-b border-line">
+        <div className="font-bold text-[17px] text-accent tracking-tight">CFC Project</div>
+        <div className="text-[11px] text-muted mt-[1px]">Job market insights</div>
       </div>
-
-      <nav className="flex-1 px-3 space-y-1">
-        <NavItem label="Market overview" active />
-        <NavItem label="Job listings" />
-        <NavItem label="Me" />
+      <nav className="flex-1 p-2">
+        <Link href="/Market-Overview" className="flex items-center gap-[10px] px-[10px] py-[9px] rounded-lg text-sm bg-accent-soft text-accent font-medium">
+          <span className="text-base w-5 text-center">📈</span> Market overview
+        </Link>
+        <Link href="/" className="flex items-center gap-[10px] px-[10px] py-[9px] rounded-lg text-sm text-muted hover:bg-surface-2 hover:text-text">
+          <span className="text-base w-5 text-center">🔍</span> Job listings
+        </Link>
+        <Link href="/me" className="flex items-center gap-[10px] px-[10px] py-[9px] rounded-lg text-sm text-muted hover:bg-surface-2 hover:text-text">
+          <span className="text-base w-5 text-center">👤</span> Me
+        </Link>
       </nav>
-
-      <div className="px-5 py-5 border-t border-line text-xs text-muted space-y-3">
-        <a href="/login" className="flex gap-1.5 hover:text-text transition-colors">
-          → Login / Register
-        </a>
-        <button className="flex gap-1.5 hover:text-text transition-colors">
-          ↩ Log off
+      <div className="p-2 border-t border-line">
+        <Link href="/login" className="flex items-center gap-[10px] px-[10px] py-[9px] rounded-lg text-sm text-muted hover:bg-surface-2 hover:text-text">
+          <span className="text-base w-5 text-center">→</span> Login / Register
+        </Link>
+        <button className="flex items-center gap-[10px] px-[10px] py-[9px] rounded-lg text-sm text-muted hover:bg-surface-2 hover:text-text w-full text-left">
+          <span className="text-base w-5 text-center">↩</span> Log off
         </button>
       </div>
     </aside>
   );
 }
-
-
 
 function SkillFilter({
   active,
@@ -92,8 +81,6 @@ function SkillFilter({
     </div>
   );
 }
-
-
 
 function SalaryChart({ data }: { data: typeof SALARY_DATA }) {
   if (data.length === 0) {
@@ -172,8 +159,6 @@ function DemandChart({ lines }: { lines: typeof DEMAND_LINES }) {
     </div>
   );
 }
-
-
 
 function JobLocations() {
   return (
