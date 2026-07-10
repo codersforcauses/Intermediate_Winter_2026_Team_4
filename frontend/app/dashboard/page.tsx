@@ -108,7 +108,10 @@ export default function MarketPage() {
           <div className="space-y-4">
             {loading && <div className="text-muted">Loading jobs…</div>}
             {!loading && jobs.map((job) => (
-              <div key={job.id} className="flex items-center justify-between bg-white border border-line rounded-lg p-4">
+              <Link
+                href="#"
+                className="flex items-center justify-between bg-white border border-line rounded-lg p-4 hover:border-accent transition-colors"
+              >
                 <div>
                   <div className="flex items-center gap-2">
                     <div className="font-medium">{job.title}</div>
@@ -119,12 +122,19 @@ export default function MarketPage() {
                 </div>
 
                 <div className="flex flex-col items-end gap-2">
-                  <button onClick={() => toggleFav(job.id)} className="text-lg text-muted">
+                  <button
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      toggleFav(job.id);
+                    }}
+                    className="text-lg text-muted"
+                  >
                     {favs[job.id] ? "★" : "☆"}
                   </button>
-                  <Link href="#" className="text-sm py-1 px-3 border border-line rounded-md">View ↗</Link>
+                  <span className="text-sm py-1 px-3 border border-line rounded-md">View ↗</span>
                 </div>
-              </div>
+              </Link>
             ))}
           </div>
         </div>
