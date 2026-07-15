@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import Sidebar from "../components/Sidebar";
 
 type Job = {
   id: string;
@@ -13,6 +14,25 @@ type Job = {
   posted?: string;
 };
 
+// Builds a compact page list like [1, "…", 4, 5, 6, "…", 20] around the current page.
+function getPageNumbers(current: number, total: number): (number | string)[] {
+  const delta = 1;
+  const pages: (number | string)[] = [];
+  let last: number | undefined;
+
+  for (let i = 1; i <= total; i++) {
+    if (i === 1 || i === total || (i >= current - delta && i <= current + delta)) {
+      if (last !== undefined && i - last > 1) {
+        pages.push("…");
+      }
+      pages.push(i);
+      last = i;
+    }
+  }
+
+  return pages;
+}
+
 export default function MarketPage() {
   const [jobs, setJobs] = useState<Job[]>([]);
   const [loading, setLoading] = useState(true);
@@ -21,18 +41,29 @@ export default function MarketPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [locationFilter, setLocationFilter] = useState("");
 
-  async function fetchJobs(q?: string, loc?: string) {
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
+
+  async function fetchJobs(q?: string, loc?: string, pageNum: number = 1) {
     setLoading(true);
     try {
       const params = new URLSearchParams();
       if (q) params.set('q', q);
       if (loc) params.set('location', loc);
+      if (pageNum > 1) params.set('page', String(pageNum));
       const url = `/api/jobs${params.toString() ? `?${params.toString()}` : ''}`;
       const res = await fetch(url);
       const data = await res.json();
       setJobs(data.jobs || []);
+      setPage(data.page || 1);
+      setTotalPages(data.totalPages || 1);
+      setTotalCount(data.totalCount || 0);
+      console.log("[Frontend Fetch URL]:", url);
     } catch (e) {
       setJobs([]);
+      setTotalPages(1);
+      setTotalCount(0);
     } finally {
       setLoading(false);
     }
@@ -43,38 +74,18 @@ export default function MarketPage() {
     fetchJobs();
   }, []);
 
+  function goToPage(pageNum: number) {
+    if (pageNum < 1 || pageNum > totalPages || pageNum === page) return;
+    fetchJobs(searchQuery, locationFilter, pageNum);
+  }
+
   function toggleFav(id: string) {
     setFavs((s) => ({ ...s, [id]: !s[id] }));
   }
 
   return (
     <div className="min-h-screen bg-bg flex">
-      {/* Sidebar (kept similar to login page so layout looks consistent) */}
-      <aside className="w-[220px] min-h-screen bg-surface border-r border-line flex flex-col fixed top-0 left-0 z-30">
-        <div className="px-[18px] py-5 border-b border-line">
-          <div className="font-bold text-[17px] text-accent tracking-tight">CFC Project</div>
-          <div className="text-[11px] text-muted mt-[1px]">Job market insights</div>
-        </div>
-        <nav className="flex-1 p-2">
-          <Link href="/dashboard" className="flex items-center gap-[10px] px-[10px] py-[9px] rounded-lg text-sm text-muted hover:bg-surface-2 hover:text-text bg-surface-2 text-text">
-            <span className="text-base w-5 text-center">📈</span> Job listings
-          </Link>
-          <Link href="/" className="flex items-center gap-[10px] px-[10px] py-[9px] rounded-lg text-sm text-muted hover:bg-surface-2 hover:text-text">
-            <span className="text-base w-5 text-center">🔍</span> Market overview
-          </Link>
-          <Link href="/me" className="flex items-center gap-[10px] px-[10px] py-[9px] rounded-lg text-sm text-muted hover:bg-surface-2 hover:text-text">
-            <span className="text-base w-5 text-center">👤</span> Me
-          </Link>
-        </nav>
-        <div className="p-2 border-t border-line">
-          <Link href="/login" className="flex items-center gap-[10px] px-[10px] py-[9px] rounded-lg text-sm bg-accent-soft text-accent font-medium">
-            <span className="text-base w-5 text-center">→</span> Login / Register
-          </Link>
-          <button className="flex items-center gap-[10px] px-[10px] py-[9px] rounded-lg text-sm text-muted hover:bg-surface-2 hover:text-text w-full text-left">
-            <span className="text-base w-5 text-center">↩</span> Log off
-          </button>
-        </div>
-      </aside>
+      <Sidebar />
 
       {/* Main content */}
       <main className="ml-[220px] flex-1 p-6">
@@ -98,18 +109,25 @@ export default function MarketPage() {
               placeholder="Location (e.g. Perth)"
             />
             <button
-              onClick={() => fetchJobs(searchQuery, locationFilter)}
+              onClick={() => fetchJobs(searchQuery, locationFilter, 1)}
               className="h-10 px-4 rounded-[10px] bg-accent text-white"
             >
               Search
             </button>
           </div>
 
+          {!loading && (
+            <div className="text-sm text-muted mb-4 text-right">
+              {totalCount.toLocaleString()} {totalCount === 1 ? "job" : "jobs"}
+            </div>
+          )}
+
           <div className="space-y-4">
             {loading && <div className="text-muted">Loading jobs…</div>}
             {!loading && jobs.map((job) => (
               <Link
-                href="#"
+                key={job.id}
+                href={`/jobs/${encodeURIComponent(job.id)}`}
                 className="flex items-center justify-between bg-white border border-line rounded-lg p-4 hover:border-accent transition-colors"
               >
                 <div>
@@ -137,6 +155,46 @@ export default function MarketPage() {
               </Link>
             ))}
           </div>
+
+          {!loading && jobs.length > 0 && totalPages > 1 && (
+            <div className="flex items-center justify-center gap-2 mt-6">
+              <button
+                onClick={() => goToPage(page - 1)}
+                disabled={page <= 1}
+                className="h-9 px-3 rounded-[10px] border border-line disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                ← Prev
+              </button>
+
+              {getPageNumbers(page, totalPages).map((p, i) =>
+                p === "…" ? (
+                  <span key={`ellipsis-${i}`} className="px-1 text-muted">
+                    …
+                  </span>
+                ) : (
+                  <button
+                    key={p}
+                    onClick={() => goToPage(p as number)}
+                    className={`h-9 min-w-9 px-3 rounded-[10px] border ${
+                      p === page
+                        ? "bg-accent text-white border-accent"
+                        : "border-line hover:bg-surface-2"
+                    }`}
+                  >
+                    {p}
+                  </button>
+                )
+              )}
+
+              <button
+                onClick={() => goToPage(page + 1)}
+                disabled={page >= totalPages}
+                className="h-9 px-3 rounded-[10px] border border-line disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                Next →
+              </button>
+            </div>
+          )}
         </div>
       </main>
     </div>

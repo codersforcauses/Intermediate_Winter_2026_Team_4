@@ -1,34 +1,64 @@
 import { NextResponse } from 'next/server'
 
-const sampleJobs = [
-  { id: '1', title: 'Senior Python Developer', company: 'Tech Co', location: 'Perth', tag: 'Python', salary: '$130,000', posted: '1d ago' },
-  { id: '2', title: 'Java Backend Engineer', company: 'FinServe', location: 'Perth', tag: 'Java', salary: '$145,000', posted: '3d ago' },
-  { id: '3', title: 'Frontend Developer (React)', company: 'Webly', location: 'Perth', tag: 'JavaScript', salary: '$110,000', posted: '2d ago' },
-  { id: '4', title: 'Data Engineer (Python)', company: 'DataWorks', location: 'Busselton', tag: 'Python', salary: 'Salary not listed', posted: '5d ago' },
-  { id: '5', title: 'Full Stack Developer', company: 'Coastal Apps', location: 'Margaret River', tag: 'JavaScript', salary: '$120,000', posted: '8d ago' },
-  { id: '6', title: 'Junior Java Developer', company: 'Enterprise WA', location: 'Perth', tag: 'Java', salary: '$85,000', posted: '6d ago' },
-  { id: '7', title: 'Python Automation Engineer', company: 'MineTech', location: 'Perth', tag: 'Python', salary: '$135,000', posted: '4d ago' }
-]
+const DJANGO_API_URL = process.env.DJANGO_API_URL || 'http://127.0.0.1:8000/api/jobs/'
 
-export function GET(request) {
+// Convert a job_postings row from the Django API into the shape the dashboard UI expects.
+function toDisplayJob(job) {
+  let salary = 'Salary not listed'
+  if (job.salary_min && job.salary_max) {
+    salary = `$${job.salary_min.toLocaleString()} - $${job.salary_max.toLocaleString()}`
+  } else if (job.salary_min) {
+    salary = `From $${job.salary_min.toLocaleString()}`
+  }
+
+  return {
+    id: job.id,
+    title: job.title,
+    company: job.company,
+    location: job.location,
+    tag: job.category || undefined,
+    salary,
+    posted: formatPosted(job.posted_at),
+    url: job.url,
+  }
+}
+
+function formatPosted(postedAt) {
+  if (!postedAt) return undefined
+  const posted = new Date(postedAt)
+  if (Number.isNaN(posted.getTime())) return undefined
+
+  const days = Math.floor((Date.now() - posted.getTime()) / (1000 * 60 * 60 * 24))
+  if (days <= 0) return 'today'
+  return `${days}d ago`
+}
+
+export async function GET(request) {
   const url = new URL(request.url)
-  const q = (url.searchParams.get('q') || '').trim().toLowerCase()
-  const location = (url.searchParams.get('location') || '').trim().toLowerCase()
+  const params = new URLSearchParams()
+  const q = url.searchParams.get('q')
+  const location = url.searchParams.get('location')
+  const page = url.searchParams.get('page')
+  if (q) params.set('q', q)
+  if (location) params.set('location', location)
+  if (page) params.set('page', page)
+    console.log("[Backend Fetch URL]:", url);
 
-  const filtered = sampleJobs.filter((job) => {
-    let matchesQ = true
-    if (q) {
-      const hay = `${job.title} ${job.company} ${job.tag || ''}`.toLowerCase()
-      matchesQ = hay.includes(q)
+  const target = `${DJANGO_API_URL}${params.toString() ? `?${params.toString()}` : ''}`
+
+  try {
+    const res = await fetch(target)
+    if (!res.ok) {
+      throw new Error(`Django API responded with ${res.status}`)
     }
-
-    let matchesLocation = true
-    if (location) {
-      matchesLocation = job.location.toLowerCase().includes(location)
-    }
-
-    return matchesQ && matchesLocation
-  })
-
-  return NextResponse.json({ jobs: filtered })
+    const data = await res.json()
+    return NextResponse.json({
+      jobs: (data.jobs || []).map(toDisplayJob),
+      page: data.page || 1,
+      totalPages: data.total_pages || 1,
+      totalCount: data.total_count || 0,
+    })
+  } catch (e) {
+    return NextResponse.json({ jobs: [], page: 1, totalPages: 1, totalCount: 0, error: 'Failed to reach job search backend' }, { status: 502 })
+  }
 }
