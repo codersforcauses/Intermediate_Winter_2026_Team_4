@@ -9,6 +9,10 @@ from django.views.decorators.http import require_GET
 from .models import JobPosting
 from .services import AdzunaError, save_jobs, search_adzuna_jobs
 
+from django.db.models import Avg
+from .models import DemandSnapshot
+
+
 logger = logging.getLogger(__name__)
 
 RESULTS_PER_PAGE = 20
@@ -105,8 +109,47 @@ def job_detail(request, external_id):
     posting = JobPosting.objects.filter(external_id=external_id).order_by('-last_updated').first()
     if posting is None:
         return JsonResponse({'error': 'Job not found'}, status=404)
-
+    
     return JsonResponse({'job': {
         **_serialize_posting(posting),
         'description': posting.description,
     }})
+
+@require_GET
+def market_overview(request):
+    salary_rows=(
+        JobPosting.objects
+        .exclude(salary_min__isnull=True, salary_max__isnull=True)
+        .values('category')
+        .annotate(avg_min=Avg('salary_min'), avg_max=Avg("salary_max"))
+    )
+
+    salary_by_skill = []
+    for row in salary_rows:
+        category = row['category'] or 'Other'
+        avg_min = row['avg_min'] or 0
+        avg_max = row['avg_max'] or 0
+        avg_salary = round((avg_min + avg_max) / 2)
+        if avg_salary > 0:
+            salary_by_skill.append({'skill': category, 'salary': avg_salary})
+
+    demand_rows = (
+        DemandSnapshot.objects
+        .order_by('skill', 'captured_at')
+        .values('skill', 'count', 'captured_at')
+    )
+
+    demand_by_skill = {}
+    for row in demand_rows:
+        skill = row['skill']
+        if skill not in demand_by_skill:
+            demand_by_skill[skill] = []
+        demand_by_skill[skill].append({
+            'date': row['captured_at'].isoformat() if row['captured_at'] else None,
+            'count': row['count'] or 0,
+        })
+
+    return JsonResponse({
+        'salary_by_skill': salary_by_skill,
+        'demand_by_skill': demand_by_skill,
+    })
