@@ -1,55 +1,15 @@
 "use client";
 
-import { useState } from "react";
-import Link from "next/link";
+import { useState, useEffect } from "react";
+import Sidebar from "@/app/components/Sidebar";
 
 const SKILLS = ["All", "#Python", "#Java", "#JavaScript", "#React", "#Django"];
 
-const SALARY_DATA = [
-  { skill: "Python", salary: 135000 },
-  { skill: "Java", salary: 115000 },
-  { skill: "JavaScript", salary: 115000 },
-  { skill: "React", salary: 120000 },
-  { skill: "Django", salary: 110000 },
-];
+const LINE_COLORS = ["#0d3880", "#9ca3af", "#f59e0b", "#06b6d4", "#10b981"];
 
-const DEMAND_LINES = [
-  { label: "Python", color: "#0d3880", points: "0,88 40,72 80,52 120,32 160,16 200,6" },
-  { label: "Java", color: "#9ca3af", points: "0,82 40,76 80,68 120,60 160,52 200,44" },
-  { label: "JavaScript", color: "#f59e0b", points: "0,80 40,68 80,58 120,46 160,34 200,24" },
-  { label: "React", color: "#06b6d4", points: "0,85 40,74 80,60 120,45 160,30 200,18" },
-  { label: "Django", color: "#10b981", points: "0,90 40,82 80,74 120,66 160,58 200,50" },
-];
-
-function Sidebar() {
-  return (
-    <aside className="w-[220px] min-h-screen bg-surface border-r border-line flex flex-col shrink-0">
-      <div className="px-[18px] py-5 border-b border-line">
-        <div className="font-bold text-[17px] text-accent tracking-tight">CFC Project</div>
-        <div className="text-[11px] text-muted mt-[1px]">Job market insights</div>
-      </div>
-      <nav className="flex-1 p-2">
-        <Link href="/Market-Overview" className="flex items-center gap-[10px] px-[10px] py-[9px] rounded-lg text-sm bg-accent-soft text-accent font-medium">
-          <span className="text-base w-5 text-center">📈</span> Market overview
-        </Link>
-        <Link href="/" className="flex items-center gap-[10px] px-[10px] py-[9px] rounded-lg text-sm text-muted hover:bg-surface-2 hover:text-text">
-          <span className="text-base w-5 text-center">🔍</span> Job listings
-        </Link>
-        <Link href="/me" className="flex items-center gap-[10px] px-[10px] py-[9px] rounded-lg text-sm text-muted hover:bg-surface-2 hover:text-text">
-          <span className="text-base w-5 text-center">👤</span> Me
-        </Link>
-      </nav>
-      <div className="p-2 border-t border-line">
-        <Link href="/login" className="flex items-center gap-[10px] px-[10px] py-[9px] rounded-lg text-sm text-muted hover:bg-surface-2 hover:text-text">
-          <span className="text-base w-5 text-center">→</span> Login / Register
-        </Link>
-        <button className="flex items-center gap-[10px] px-[10px] py-[9px] rounded-lg text-sm text-muted hover:bg-surface-2 hover:text-text w-full text-left">
-          <span className="text-base w-5 text-center">↩</span> Log off
-        </button>
-      </div>
-    </aside>
-  );
-}
+type SalaryItem = { skill: string; salary: number };
+type DemandPoint = { date: string | null; count: number };
+type DemandData = { [skill: string]: DemandPoint[] };
 
 function SkillFilter({
   active,
@@ -82,7 +42,7 @@ function SkillFilter({
   );
 }
 
-function SalaryChart({ data }: { data: typeof SALARY_DATA }) {
+function SalaryChart({ data }: { data: SalaryItem[] }) {
   if (data.length === 0) {
     return (
       <div className="bg-surface rounded-2xl p-5">
@@ -101,7 +61,7 @@ function SalaryChart({ data }: { data: typeof SALARY_DATA }) {
       <p className="text-sm font-semibold mb-4">Average salary by skill</p>
       <div className="flex items-end justify-around" style={{ height: 120 }}>
         {data.map(({ skill, salary }) => (
-          <div key={skill} className="flex flex-col items-center gap-1" style={{ width: 64 }}>
+          <div key={skill} className="flex flex-col items-center gap-1" style={{ width: 80 }}>
             <span className="text-[10px] text-muted leading-none">
               ${salary.toLocaleString()}
             </span>
@@ -109,7 +69,7 @@ function SalaryChart({ data }: { data: typeof SALARY_DATA }) {
               className="w-full rounded-t bg-accent"
               style={{ height: Math.round((salary / max) * 80) }}
             />
-            <span className="text-[11px] text-muted text-center">{skill}</span>
+            <span className="text-[10px] text-muted text-center leading-tight">{skill}</span>
           </div>
         ))}
       </div>
@@ -117,8 +77,10 @@ function SalaryChart({ data }: { data: typeof SALARY_DATA }) {
   );
 }
 
-function DemandChart({ lines }: { lines: typeof DEMAND_LINES }) {
-  if (lines.length === 0) {
+function DemandChart({ demand }: { demand: DemandData }) {
+  const skills = Object.keys(demand);
+
+  if (skills.length === 0) {
     return (
       <div className="bg-surface rounded-2xl p-5">
         <p className="text-sm font-semibold mb-4">Demand trend</p>
@@ -129,13 +91,35 @@ function DemandChart({ lines }: { lines: typeof DEMAND_LINES }) {
     );
   }
 
+  // Find the highest count across all skills, so all lines share the same scale.
+  let maxCount = 1;
+  skills.forEach((skill) => {
+    demand[skill].forEach((p) => {
+      if (p.count > maxCount) maxCount = p.count;
+    });
+  });
+
+  // Build an SVG polyline string for each skill.
+  const lines = skills.map((skill, i) => {
+    const points = demand[skill];
+    const step = points.length > 1 ? 200 / (points.length - 1) : 0;
+    const coords = points
+      .map((p, idx) => {
+        const x = idx * step;
+        const y = 100 - (p.count / maxCount) * 90;
+        return `${x},${y}`;
+      })
+      .join(" ");
+    return { skill, color: LINE_COLORS[i % LINE_COLORS.length], points: coords };
+  });
+
   return (
     <div className="bg-surface rounded-2xl p-5">
       <p className="text-sm font-semibold mb-3">Demand trend</p>
       <svg viewBox="0 0 200 100" className="w-full h-32" preserveAspectRatio="none">
         {lines.map((line) => (
           <polyline
-            key={line.label}
+            key={line.skill}
             points={line.points}
             fill="none"
             stroke={line.color}
@@ -147,12 +131,12 @@ function DemandChart({ lines }: { lines: typeof DEMAND_LINES }) {
       </svg>
       <div className="flex flex-wrap gap-3 mt-2">
         {lines.map((line) => (
-          <div key={line.label} className="flex items-center gap-1.5 text-xs text-muted">
+          <div key={line.skill} className="flex items-center gap-1.5 text-xs text-muted">
             <span
               className="inline-block w-4 rounded"
               style={{ height: 2, backgroundColor: line.color }}
             />
-            {line.label}
+            {line.skill}
           </div>
         ))}
       </div>
@@ -182,35 +166,70 @@ function JobLocations() {
 export default function MarketOverviewPage() {
   const [activeSkill, setActiveSkill] = useState("All");
 
+  // State to hold data fetched from the backend.
+  const [salaryData, setSalaryData] = useState<SalaryItem[]>([]);
+  const [demandData, setDemandData] = useState<DemandData>({});
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  // useEffect runs once when the page loads. We fetch data from our Django API.
+  useEffect(() => {
+    fetch("http://127.0.0.1:8000/api/market-overview/")
+      .then((res) => {
+        if (!res.ok) throw new Error("Failed to load data");
+        return res.json();
+      })
+      .then((data) => {
+        setSalaryData(data.salary_by_skill || []);
+        setDemandData(data.demand_by_skill || {});
+        setLoading(false);
+      })
+      .catch((err) => {
+        setError(err.message);
+        setLoading(false);
+      });
+  }, []);
+
+  // Filter salary data based on the selected skill pill.
   const salaryToShow =
     activeSkill === "All"
-      ? SALARY_DATA.slice(0, 3)
-      : SALARY_DATA.filter((d) => `#${d.skill}` === activeSkill);
+      ? salaryData.slice(0, 5)
+      : salaryData.filter((d) => `#${d.skill}` === activeSkill);
 
-  const linesToShow =
+  // Filter demand data based on the selected skill pill.
+  const demandToShow: DemandData =
     activeSkill === "All"
-      ? DEMAND_LINES.filter((l) => l.label === "Python" || l.label === "Java")
-      : DEMAND_LINES.filter((l) => `#${l.label}` === activeSkill);
+      ? demandData
+      : Object.fromEntries(
+          Object.entries(demandData).filter(([skill]) => `#${skill}` === activeSkill)
+        );
 
   return (
     <div className="flex h-screen overflow-hidden bg-bg">
       <Sidebar />
 
-      <main className="flex-1 overflow-y-auto p-8">
+      <main className="flex-1 overflow-y-auto p-8 ml-[220px]">
         <h1 className="text-3xl font-bold text-text">Market overview</h1>
         <p className="text-muted mt-1 mb-8 text-sm">
           Insights into salary trends, skill demand, and job locations
         </p>
 
-        <div className="mb-6">
-          <SkillFilter active={activeSkill} onSelect={setActiveSkill} />
-        </div>
+        {loading && <p className="text-muted text-sm">Loading data…</p>}
+        {error && <p className="text-red-500 text-sm">Error: {error}</p>}
 
-        <div className="grid grid-cols-2 gap-4">
-          <SalaryChart data={salaryToShow} />
-          <DemandChart lines={linesToShow} />
-          <JobLocations />
-        </div>
+        {!loading && !error && (
+          <>
+            <div className="mb-6">
+              <SkillFilter active={activeSkill} onSelect={setActiveSkill} />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <SalaryChart data={salaryToShow} />
+              <DemandChart demand={demandToShow} />
+              <JobLocations />
+            </div>
+          </>
+        )}
       </main>
     </div>
   );
