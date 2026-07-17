@@ -54,6 +54,7 @@ CREATE TABLE job_postings (
     location          TEXT,
     description       TEXT,
     url               TEXT,
+    category          TEXT,
     posted_at         DATETIME,
     created_at        DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     last_updated      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
