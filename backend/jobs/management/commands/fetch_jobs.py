@@ -36,14 +36,23 @@ class Command(BaseCommand):
             default='Western Australia',
             help='Location passed to Adzuna for every tracked skill (default: "Western Australia").',
         )
+        parser.add_argument(
+            '--date',
+            default=None,
+            help='Date (YYYY-MM-DD) to record the snapshot under (default: today). '
+                 'Adzuna only exposes current listings, so this backdates the label, '
+                 'not the underlying data.',
+        )
 
     def handle(self, *args, **options):
         location = options['location']
-        today = datetime.date.today()
+        captured_at = (
+            datetime.date.fromisoformat(options['date']) if options['date'] else datetime.date.today()
+        )
 
         for skill in TRACKED_SKILLS:
             try:
-                results, _ = search_adzuna_jobs(keyword=skill, location=location, results_per_page=50)
+                results, total_count = search_adzuna_jobs(keyword=skill, location=location, results_per_page=50)
             except AdzunaError as exc:
                 self.stderr.write(self.style.WARNING(f'Skipping "{skill}": {exc}'))
                 continue
@@ -51,7 +60,7 @@ class Command(BaseCommand):
             save_jobs(results)
             DemandSnapshot.objects.update_or_create(
                 skill=skill,
-                captured_at=today,
-                defaults={'count': len(results)},
+                captured_at=captured_at,
+                defaults={'count': total_count},
             )
-            self.stdout.write(self.style.SUCCESS(f'{skill}: {len(results)} jobs saved'))
+            self.stdout.write(self.style.SUCCESS(f'{skill}: {total_count} jobs matching ({len(results)} saved)'))
