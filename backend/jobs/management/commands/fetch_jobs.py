@@ -43,7 +43,7 @@ class Command(BaseCommand):
 
         for skill in TRACKED_SKILLS:
             try:
-                results = search_adzuna_jobs(keyword=skill, location=location, results_per_page=50)
+                results, _ = search_adzuna_jobs(keyword=skill, location=location, results_per_page=50)
             except AdzunaError as exc:
                 self.stderr.write(self.style.WARNING(f'Skipping "{skill}": {exc}'))
                 continue
