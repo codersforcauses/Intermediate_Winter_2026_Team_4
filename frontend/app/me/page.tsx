@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Sidebar from "@/app/components/Sidebar";
 
 // ================================================================
 // Types — describe the shape of data coming from our Django API
@@ -119,6 +120,8 @@ export default function MePage() {
 
   return (
     <main className="min-h-screen bg-[#f5f4f1] px-12 py-10 flex flex-col gap-6 max-w-4xl mx-auto">
+
+      <Sidebar />
 
       {/* Page heading */}
       <div>

@@ -92,7 +92,7 @@ export default function MarketPage() {
         <div className="max-w-[980px] mx-auto">
           <div className="mb-6">
             <h1 className="text-2xl font-bold">Job listings</h1>
-            <div className="text-sm text-muted">Search and explore IT job opportunities across Western Australia</div>
+            <div className="text-sm text-muted">Search and explore job opportunities</div>
           </div>
 
           <div className="flex gap-4 mb-6">
