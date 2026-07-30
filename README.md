@@ -200,19 +200,6 @@ Defined in `schema.sql`. `users`, `favourite_jobs`, and `saved_searches` exist i
 | `favourite_jobs` | Saved jobs per user |
 | `saved_searches` | Saved keyword/location filters, with an alert flag |
 
----
-
-## Known gaps
-
-Being upfront about what isn't finished:
-
-- `frontend/app/api/jobs/[id]/route.js` is empty — the job detail page has no proxy route.
-- Auth is UI-only. `login/page.tsx` redirects on submit with a `TODO` where the Django call belongs.
-- `django-cors-headers` is in `INSTALLED_APPS` and `MIDDLEWARE` but missing from `requirements.txt`, so a fresh install fails on startup until it's added.
-- `frontend/app/page.tsx` is still the `create-next-app` placeholder; the root route should redirect to `/dashboard`.
-- `SECRET_KEY` is hardcoded and `DEBUG = True` — both need to move to environment variables before any deployment.
-- `LocMemCache` is per-process, so the search cache won't be shared once the backend runs on more than one worker.
-- Favourites currently live in component state only; nothing is persisted to `favourite_jobs`.
 
 ---
 
@@ -225,15 +212,3 @@ Being upfront about what isn't finished:
 | Yupei | [@zyp-gamer](https://github.com/zyp-gamer) | Market overview page — salary and demand charts |
 | Angie Lee | [@dldmewl2970](https://github.com/dldmewl2970) | Job search page — search, filters, pagination |
 
-## Stand-up schedule
-
-_TBD_
-
----
-
-## Contributing
-
-1. Branch off `main` using `feature/<name>` or `fix/<name>`.
-2. Keep the branch focused on one change and rebase on `main` before opening a PR.
-3. Open a PR against `main` and request a review from at least one teammate.
-4. Squash-merge once approved and CI is green.
