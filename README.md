@@ -2,8 +2,6 @@
 
 Job market insights for job seekers — search live listings and see how demand and salaries move across skills.
 
-Built for **Coders for Causes — Intermediate Winter 2026, Team 4**.
-
 JobRader pulls job listings from the [Adzuna API](https://developer.adzuna.com/), caches them locally, and records a daily snapshot of how many postings match each tracked skill. That history is what powers the market overview charts — Adzuna only exposes current listings, so the trend data has to be accumulated over time by our own scheduled job.
 
 ---
