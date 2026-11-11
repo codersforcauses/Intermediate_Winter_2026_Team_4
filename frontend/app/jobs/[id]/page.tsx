@@ -38,7 +38,7 @@ export default function JobDetailPage() {
         }
         const data = await res.json();
         if (!cancelled) setJob(data.job || null);
-      } catch (e) {
+      } catch {
         if (!cancelled) setJob(null);
       } finally {
         if (!cancelled) setLoading(false);
