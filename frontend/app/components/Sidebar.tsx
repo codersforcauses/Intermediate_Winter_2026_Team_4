@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 const navItems = [
-  { href: "/market", label: "Market overview", icon: "📈" },
+  { href: "/Market-Overview", label: "Market overview", icon: "📈" },
   { href: "/dashboard", label: "Job listings", icon: "🔍" },
   { href: "/me", label: "Me", icon: "👤" },
 ];
@@ -15,7 +15,7 @@ export default function Sidebar() {
   return (
     <aside className="w-[220px] min-h-screen bg-surface border-r border-line flex flex-col fixed top-0 left-0 z-30">
       <div className="px-[18px] py-5 border-b border-line">
-        <div className="font-bold text-[17px] text-accent tracking-tight">CFC Project</div>
+        <div className="font-bold text-[17px] text-accent tracking-tight">JobRader</div>
         <div className="text-[11px] text-muted mt-[1px]">Job market insights</div>
       </div>
 

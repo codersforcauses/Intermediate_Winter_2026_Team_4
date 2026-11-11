@@ -13,7 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "CFC Project – Job market insights",
+  title: "JobRader – Job market insights",
   description: "Search IT jobs and explore salary and skill demand trends in Western Australia",
 };
 
