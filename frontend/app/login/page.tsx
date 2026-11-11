@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
+import Sidebar from "../components/Sidebar";
 
 export default function LoginPage() {
   const [tab, setTab] = useState("login");
@@ -21,37 +21,12 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen bg-bg flex">
-      {/* Sidebar */}
-      <aside className="w-[220px] min-h-screen bg-surface border-r border-line flex flex-col fixed top-0 left-0 z-30">
-        <div className="px-[18px] py-5 border-b border-line">
-          <div className="font-bold text-[17px] text-accent tracking-tight">JobRader</div>
-          <div className="text-[11px] text-muted mt-[1px]">Job market insights</div>
-        </div>
-        <nav className="flex-1 p-2">
-          <Link href="/Market-Overview" className="flex items-center gap-[10px] px-[10px] py-[9px] rounded-lg text-sm text-muted hover:bg-surface-2 hover:text-text">
-            <span className="text-base w-5 text-center">📈</span> Market overview
-          </Link>
-          <Link href="/dashboard" className="flex items-center gap-[10px] px-[10px] py-[9px] rounded-lg text-sm text-muted hover:bg-surface-2 hover:text-text">
-            <span className="text-base w-5 text-center">🔍</span> Job listings
-          </Link>
-          <Link href="/me" className="flex items-center gap-[10px] px-[10px] py-[9px] rounded-lg text-sm text-muted hover:bg-surface-2 hover:text-text">
-            <span className="text-base w-5 text-center">👤</span> Me
-          </Link>
-        </nav>
-        <div className="p-2 border-t border-line">
-          <Link href="/login" className="flex items-center gap-[10px] px-[10px] py-[9px] rounded-lg text-sm bg-accent-soft text-accent font-medium">
-            <span className="text-base w-5 text-center">→</span> Login / Register
-          </Link>
-          <button className="flex items-center gap-[10px] px-[10px] py-[9px] rounded-lg text-sm text-muted hover:bg-surface-2 hover:text-text w-full text-left">
-            <span className="text-base w-5 text-center">↩</span> Log off
-          </button>
-        </div>
-      </aside>
+      <Sidebar />
 
       {/* Main */}
       <main className="ml-[220px] flex-1 flex items-center justify-center p-6">
         <div className="bg-surface border border-line rounded-2xl p-8 w-full max-w-[360px]">
-          <div className="text-xl font-bold mb-[6px]">Welcome to JobRader</div>
+          <div className="text-xl font-bold mb-[6px]">Welcome to CFC Project</div>
           <div className="text-[13px] text-muted mb-6">Sign in or create an account to save jobs and searches.</div>
 
           {/* Tabs */}
@@ -101,7 +76,7 @@ export default function LoginPage() {
                 Sign in
               </button>
               <p className="text-center text-[13px] text-muted mt-4">
-                Don't have an account?{" "}
+                Don&apos;t have an account?{" "}
                 <button onClick={() => setTab("register")} className="text-accent">
                   Create one
                 </button>

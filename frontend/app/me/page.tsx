@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import Sidebar from "@/app/components/Sidebar";
+import Sidebar from "../components/Sidebar";
 
 // ================================================================
 // Types — describe the shape of data coming from our Django API
@@ -79,7 +79,7 @@ export default function MePage() {
 
         setFavouriteJobs(jobsData.favourite_jobs);
         setSavedSearches(searchesData.saved_searches);
-      } catch (err) {
+      } catch {
         setError("Could not load your data. Is the backend running?");
       } finally {
         setLoading(false);
@@ -119,21 +119,21 @@ export default function MePage() {
   }
 
   return (
-    <main className="min-h-screen bg-[#f5f4f1] px-12 py-10 flex flex-col gap-6 max-w-4xl mx-auto">
-
-      <Sidebar />
+    <div className="min-h-screen bg-bg flex">
+    <Sidebar />
+    <main className="ml-[220px] flex-1 px-12 py-10 flex flex-col gap-6 max-w-4xl mx-auto">
 
       {/* Page heading */}
       <div>
-        <h1 className="text-3xl font-bold text-[#1e3a8a]">My profile</h1>
+        <h1 className="text-3xl font-bold text-accent">My profile</h1>
         <p className="text-sm text-gray-500 mt-1">
           Manage your saved jobs and searches
         </p>
       </div>
 
       {/* Profile card */}
-      <div className="bg-white border border-gray-200 rounded-xl p-7 flex items-center gap-5 flex-wrap">
-        <div className="w-16 h-16 min-w-16 rounded-full bg-[#dce3f7] text-[#1e3a8a] flex items-center justify-center text-lg font-bold">
+      <div className="bg-white border border-line rounded-xl p-7 flex items-center gap-5 flex-wrap">
+        <div className="w-16 h-16 min-w-16 rounded-full bg-accent-soft text-accent flex items-center justify-center text-lg font-bold">
           {getInitials(mockUser.name)}
         </div>
         <div className="flex flex-col gap-1 flex-1">
@@ -141,14 +141,14 @@ export default function MePage() {
           <p className="text-sm text-gray-500">{mockUser.email}</p>
         </div>
         <div className="flex gap-3">
-          <div className="bg-[#eceae5] rounded-xl px-6 py-4 text-center min-w-[90px]">
-            <p className="text-2xl font-bold text-[#1e3a8a]">
+          <div className="bg-surface-2 rounded-xl px-6 py-4 text-center min-w-[90px]">
+            <p className="text-2xl font-bold text-accent">
               {favouriteJobs.length}
             </p>
             <p className="text-xs text-gray-500 mt-1">Saved jobs</p>
           </div>
-          <div className="bg-[#eceae5] rounded-xl px-6 py-4 text-center min-w-[90px]">
-            <p className="text-2xl font-bold text-[#1e3a8a]">
+          <div className="bg-surface-2 rounded-xl px-6 py-4 text-center min-w-[90px]">
+            <p className="text-2xl font-bold text-accent">
               {savedSearches.length}
             </p>
             <p className="text-xs text-gray-500 mt-1">Saved searches</p>
@@ -167,12 +167,12 @@ export default function MePage() {
       {/* Tabs */}
       {!loading && !error && (
         <div>
-          <div className="flex gap-7 border-b border-gray-200">
+          <div className="flex gap-7 border-b border-line">
             <button
               onClick={() => setActiveTab("jobs")}
               className={`pb-3 text-sm font-semibold border-b-2 -mb-px cursor-pointer ${
                 activeTab === "jobs"
-                  ? "border-[#1e3a8a] text-gray-900"
+                  ? "border-accent text-gray-900"
                   : "border-transparent text-gray-400"
               }`}
             >
@@ -182,7 +182,7 @@ export default function MePage() {
               onClick={() => setActiveTab("searches")}
               className={`pb-3 text-sm font-semibold border-b-2 -mb-px cursor-pointer ${
                 activeTab === "searches"
-                  ? "border-[#1e3a8a] text-gray-900"
+                  ? "border-accent text-gray-900"
                   : "border-transparent text-gray-400"
               }`}
             >
@@ -203,14 +203,14 @@ export default function MePage() {
                   favouriteJobs.map((job) => (
                     <div
                       key={job.favourite_jobs_id}
-                      className="bg-white border border-gray-200 rounded-xl px-6 py-5 flex items-start justify-between gap-4 flex-wrap"
+                      className="bg-white border border-line rounded-xl px-6 py-5 flex items-start justify-between gap-4 flex-wrap"
                     >
                       <div className="flex flex-col gap-1">
                         <p className="font-bold text-gray-900">{job.title}</p>
                         <p className="text-sm text-gray-500">
                           {job.company} · {job.location}
                         </p>
-                        <p className="text-sm font-bold text-[#1e3a8a]">
+                        <p className="text-sm font-bold text-accent">
                           {formatSalary(job.salary_min, job.salary_max)}
                         </p>
                       </div>
@@ -247,7 +247,7 @@ export default function MePage() {
                   savedSearches.map((search) => (
                     <div
                       key={search.saved_searches_id}
-                      className="bg-white border border-gray-200 rounded-xl px-6 py-5 flex items-center justify-between gap-4 flex-wrap"
+                      className="bg-white border border-line rounded-xl px-6 py-5 flex items-center justify-between gap-4 flex-wrap"
                     >
                       <div>
                         <p className="font-bold text-gray-900">
@@ -274,5 +274,6 @@ export default function MePage() {
         </div>
       )}
     </main>
+    </div>
   );
 }

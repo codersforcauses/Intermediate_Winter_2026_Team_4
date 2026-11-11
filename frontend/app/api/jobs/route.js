@@ -42,7 +42,6 @@ export async function GET(request) {
   if (q) params.set('q', q)
   if (location) params.set('location', location)
   if (page) params.set('page', page)
-    console.log("[Backend Fetch URL]:", url);
 
   const target = `${DJANGO_API_URL}${params.toString() ? `?${params.toString()}` : ''}`
 

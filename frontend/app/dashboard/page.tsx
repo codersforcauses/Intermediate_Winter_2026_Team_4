@@ -33,7 +33,7 @@ function getPageNumbers(current: number, total: number): (number | string)[] {
   return pages;
 }
 
-export default function MarketPage() {
+export default function JobListingsPage() {
   const [jobs, setJobs] = useState<Job[]>([]);
   const [loading, setLoading] = useState(true);
   const [favs, setFavs] = useState<Record<string, boolean>>({});
@@ -59,8 +59,7 @@ export default function MarketPage() {
       setPage(data.page || 1);
       setTotalPages(data.totalPages || 1);
       setTotalCount(data.totalCount || 0);
-      console.log("[Frontend Fetch URL]:", url);
-    } catch (e) {
+    } catch {
       setJobs([]);
       setTotalPages(1);
       setTotalCount(0);
@@ -71,6 +70,7 @@ export default function MarketPage() {
 
   // initial load
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchJobs();
   }, []);
 
