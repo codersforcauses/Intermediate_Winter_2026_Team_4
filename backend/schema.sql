@@ -1,41 +1,12 @@
-PRAGMA foreign_keys = ON;
+-- Tables for the job-market data. These are NOT created by Django migrations
+-- (the jobs models are managed = False); apply this file with:
+--
+--     python manage.py init_db
+--
+-- It is safe to run repeatedly. Users, sessions, favourite jobs and saved
+-- searches are ordinary Django models and are created by `python manage.py migrate`.
 
-CREATE TABLE users (
-    users_id        INTEGER PRIMARY KEY AUTOINCREMENT,
-    email           TEXT NOT NULL UNIQUE,
-    password_hash   TEXT NOT NULL,
-    created_at      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    last_updated    DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE TABLE favourite_jobs (
-    favourite_jobs_id  INTEGER PRIMARY KEY AUTOINCREMENT,
-    users_id            INTEGER NOT NULL,
-    adzuna_id           TEXT,
-    title               TEXT,
-    company             TEXT,
-    salary_min          INTEGER,
-    salary_max          INTEGER,
-    location            TEXT,
-    redirect_url        TEXT,
-    saved_at            DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    last_updated        DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (users_id) REFERENCES users (users_id) ON DELETE CASCADE
-);
-
-CREATE TABLE saved_searches (
-    saved_searches_id  INTEGER PRIMARY KEY AUTOINCREMENT,
-    users_id            INTEGER NOT NULL,
-    keyword             TEXT,
-    location             TEXT,
-    sort_by              TEXT,
-    alert_enabled        BOOLEAN NOT NULL DEFAULT 0,
-    created_at           DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    last_updated         DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (users_id) REFERENCES users (users_id) ON DELETE CASCADE
-);
-
-CREATE TABLE demand_snapshots (
+CREATE TABLE IF NOT EXISTS demand_snapshots (
     demand_snapshots_id  INTEGER PRIMARY KEY AUTOINCREMENT,
     skill                 TEXT,
     count                 INTEGER,
@@ -43,7 +14,7 @@ CREATE TABLE demand_snapshots (
     last_updated          DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE TABLE job_postings (
+CREATE TABLE IF NOT EXISTS job_postings (
     job_postings_id  INTEGER PRIMARY KEY AUTOINCREMENT,
     source            TEXT,
     external_id       TEXT,
@@ -60,5 +31,8 @@ CREATE TABLE job_postings (
     last_updated      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE INDEX idx_favourite_jobs_users_id ON favourite_jobs (users_id);
-CREATE INDEX idx_saved_searches_users_id ON saved_searches (users_id);
+-- save_jobs() upserts on (source, external_id); job_detail() looks up by external_id.
+CREATE UNIQUE INDEX IF NOT EXISTS idx_job_postings_source_external
+    ON job_postings (source, external_id);
+CREATE INDEX IF NOT EXISTS idx_job_postings_external_id ON job_postings (external_id);
+CREATE INDEX IF NOT EXISTS idx_demand_snapshots_skill_date ON demand_snapshots (skill, captured_at);

@@ -13,6 +13,7 @@ https://docs.djangoproject.com/en/4.2/ref/settings/
 import os
 from pathlib import Path
 
+from django.core.exceptions import ImproperlyConfigured
 from dotenv import load_dotenv
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -24,13 +25,23 @@ load_dotenv(BASE_DIR / '.env')
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/4.2/howto/deployment/checklist/
 
-# SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-hucxi@u9u=6$@a^tqqg2se4_oi@hjg6u$ru(dkt0c!#!zqy-gy'
+def _env_list(name, default=''):
+    """Read a comma-separated environment variable into a list."""
+    return [item.strip() for item in os.environ.get(name, default).split(',') if item.strip()]
+
+
+# Development-only fallback. Real deployments must set DJANGO_SECRET_KEY.
+_DEV_SECRET_KEY = 'django-insecure-hucxi@u9u=6$@a^tqqg2se4_oi@hjg6u$ru(dkt0c!#!zqy-gy'
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.environ.get('DJANGO_DEBUG', 'true').lower() in ('1', 'true', 'yes')
 
-ALLOWED_HOSTS = []
+# SECURITY WARNING: keep the secret key used in production secret!
+SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', _DEV_SECRET_KEY)
+if not DEBUG and SECRET_KEY == _DEV_SECRET_KEY:
+    raise ImproperlyConfigured('Set DJANGO_SECRET_KEY when DJANGO_DEBUG is off.')
+
+ALLOWED_HOSTS = _env_list('DJANGO_ALLOWED_HOSTS')
 
 
 # Application definition
@@ -44,6 +55,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'corsheaders',
     'jobs',
+    'accounts',
 ]
 
 MIDDLEWARE = [
@@ -146,7 +158,10 @@ STATIC_URL = 'static/'
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # Allow the Next.js frontend to talk to the Django backend
-CORS_ALLOWED_ORIGINS = [
-    "http://localhost:3000",
-    "http://127.0.0.1:3000",
-]
+_DEFAULT_FRONTEND_ORIGINS = 'http://localhost:3000,http://127.0.0.1:3000'
+CORS_ALLOWED_ORIGINS = _env_list('CORS_ALLOWED_ORIGINS', _DEFAULT_FRONTEND_ORIGINS)
+CORS_ALLOW_CREDENTIALS = True
+
+# The browser talks to Django through the Next.js proxy, so POSTs arrive with
+# the frontend's Origin header and must be trusted for CSRF checks.
+CSRF_TRUSTED_ORIGINS = _env_list('CSRF_TRUSTED_ORIGINS', _DEFAULT_FRONTEND_ORIGINS)

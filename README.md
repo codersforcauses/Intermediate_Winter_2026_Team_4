@@ -12,7 +12,7 @@ JobRader pulls job listings from the [Adzuna API](https://developer.adzuna.com/)
 | --- | --- |
 | Frontend | Next.js 16, React 19, TypeScript, Tailwind CSS 4 |
 | Backend | Django 4.2 |
-| Database | SQLite, schema managed by hand via `schema.sql` |
+| Database | SQLite — Django migrations for users/favourites, `schema.sql` for the job-market tables |
 | External data | Adzuna Jobs API |
 
 ---
@@ -22,8 +22,8 @@ JobRader pulls job listings from the [Adzuna API](https://developer.adzuna.com/)
 - **Market overview** (`/Market-Overview`) — average salary by skill and a demand-over-time line chart, filterable by skill.
 - **Job listings** (`/dashboard`) — free-text keyword and location search with paginated results, backed by a 30-minute cache so we don't burn through the Adzuna rate limit.
 - **Job detail** (`/jobs/[id]`) — full description for a single posting, read from the local cache.
-- **Me** (`/me`) — favourited jobs and saved searches.
-- **Login / Register** (`/login`) — UI is in place; not yet wired to a backend auth endpoint.
+- **Me** (`/me`) — your saved jobs and saved searches (with an alerts on/off flag). Requires sign-in.
+- **Login / Register** (`/login`) — email + password accounts using Django sessions. Signing in lets you save jobs (the ☆ on listings and job pages) and save searches (the **Save search** button on the listings page).
 
 ---
 
@@ -33,18 +33,25 @@ JobRader pulls job listings from the [Adzuna API](https://developer.adzuna.com/)
 .
 ├── backend/                     # Django project
 │   ├── config/                  # settings, urls, wsgi/asgi
-│   ├── jobs/                    # the only app
+│   ├── accounts/                # auth + saved jobs / searches
+│   │   ├── models.py            # FavouriteJob, SavedSearch (Django migrations)
+│   │   ├── views.py             # register / login / logout / me, favourites, searches
+│   │   └── tests.py
+│   ├── jobs/                    # job-market data
 │   │   ├── models.py            # JobPosting, DemandSnapshot (managed = False)
 │   │   ├── services.py          # Adzuna client + normalisation + upsert
 │   │   ├── views.py             # job_search, job_detail, market_overview
 │   │   └── management/commands/
-│   │       └── fetch_jobs.py    # scheduled batch fetch + daily snapshot
-│   ├── schema.sql               # source of truth for the DB schema
+│   │       ├── fetch_jobs.py    # scheduled batch fetch + daily snapshot
+│   │       └── init_db.py       # applies schema.sql
+│   ├── schema.sql               # job_postings + demand_snapshots tables
+│   ├── .env.example
 │   └── requirements.txt
 └── frontend/                    # Next.js app
     └── app/
         ├── api/jobs/            # route handlers proxying the Django API
         ├── components/Sidebar.tsx
+        ├── lib/                 # api.ts (fetch + CSRF), auth.tsx, favourites.ts
         ├── Market-Overview/
         ├── dashboard/
         ├── jobs/[id]/
@@ -69,10 +76,9 @@ cd backend
 python -m venv venv
 source venv/bin/activate        # Windows: venv\Scripts\activate
 pip install -r requirements.txt
-pip install django-cors-headers # not yet pinned in requirements.txt, but settings.py needs it
 ```
 
-Create `backend/.env`:
+Create `backend/.env` (see `backend/.env.example` for every option):
 
 ```env
 ADZUNA_APP_ID=your_app_id
@@ -80,13 +86,16 @@ ADZUNA_APP_KEY=your_app_key
 ADZUNA_COUNTRY=au
 ```
 
-Create the database. The `jobs` models are declared `managed = False`, so `migrate` will **not** create `job_postings` or `demand_snapshots` — `schema.sql` does:
+Create the database. The `jobs` models are declared `managed = False`, so `migrate` will **not** create `job_postings` or `demand_snapshots` — `init_db` applies `schema.sql` for those. Users, sessions, saved jobs and saved searches are normal Django models created by `migrate`:
 
 ```bash
-sqlite3 db.sqlite3 < schema.sql   # app tables
-python manage.py migrate          # Django's own tables (auth, sessions, admin)
+python manage.py migrate          # auth, sessions, saved jobs/searches, admin
+python manage.py init_db          # job_postings + demand_snapshots (safe to re-run)
+python manage.py test             # optional: run the backend tests
 python manage.py runserver        # http://127.0.0.1:8000
 ```
+
+> **Upgrading an older local database?** Earlier versions of `schema.sql` also created `users`, `favourite_jobs` and `saved_searches`. If `migrate` fails with "table favourite_jobs already exists", drop those (empty) tables — or delete `db.sqlite3` and start again.
 
 ### 2. Frontend
 
@@ -96,7 +105,7 @@ npm install
 npm run dev                       # http://localhost:3000
 ```
 
-The Next.js route handlers proxy to Django at `http://127.0.0.1:8000/api/jobs/` by default. Override with `DJANGO_API_URL` in `frontend/.env.local` if your backend runs elsewhere.
+The browser never calls Django directly. Job search goes through the route handlers in `app/api/jobs/`, and everything else (auth, saved jobs/searches, market overview) goes through a same-origin `/django/...` rewrite defined in `next.config.ts`. This keeps the session and CSRF cookies on one origin. If your backend isn't at `http://127.0.0.1:8000`, set `DJANGO_ORIGIN` and `DJANGO_API_URL` in `frontend/.env.local`.
 
 ### 3. Seed the trend data
 
@@ -124,13 +133,19 @@ Tracked skills live in `TRACKED_SKILLS` at the top of `fetch_jobs.py`. In produc
 | `ADZUNA_APP_ID` | `backend/.env` | Yes | `''` |
 | `ADZUNA_APP_KEY` | `backend/.env` | Yes | `''` |
 | `ADZUNA_COUNTRY` | `backend/.env` | No | `au` |
+| `DJANGO_DEBUG` | `backend/.env` | No | `true` |
+| `DJANGO_SECRET_KEY` | `backend/.env` | In production | insecure dev key |
+| `DJANGO_ALLOWED_HOSTS` | `backend/.env` | In production | empty |
+| `CORS_ALLOWED_ORIGINS` | `backend/.env` | No | `http://localhost:3000,http://127.0.0.1:3000` |
+| `CSRF_TRUSTED_ORIGINS` | `backend/.env` | No | same as above |
+| `DJANGO_ORIGIN` | `frontend/.env.local` | No | `http://127.0.0.1:8000` |
 | `DJANGO_API_URL` | `frontend/.env.local` | No | `http://127.0.0.1:8000/api/jobs/` |
 
 ---
 
 ## API reference
 
-All endpoints are `GET` only and return JSON.
+All endpoints return JSON. The job-market endpoints are `GET` only. Account endpoints use Django session cookies; every non-`GET` request must send the `X-CSRFToken` header (call `GET /api/auth/csrf/` once to receive the `csrftoken` cookie). Endpoints under `/api/me/` return `401` when not signed in. Paths end in a slash when calling Django directly.
 
 ### `GET /api/jobs/`
 
@@ -184,19 +199,43 @@ Aggregates for the charts.
 
 `salary_by_skill` averages the midpoint of `salary_min`/`salary_max` grouped by Adzuna category. `demand_by_skill` is the accumulated `demand_snapshots` history, grouped by skill and ordered by date.
 
+### Auth
+
+| Method & path | Body | Result |
+| --- | --- | --- |
+| `GET /api/auth/csrf/` | — | Sets the `csrftoken` cookie |
+| `GET /api/auth/me/` | — | `{ "user": { id, name, email } }`, or `{ "user": null }` |
+| `POST /api/auth/register/` | `{ name, email, password }` | `201` with the new user, and signs them in. `400` with `error` / `errors` for a bad email, a weak password (min 8 chars, not common or all-numeric) or a duplicate email |
+| `POST /api/auth/login/` | `{ email, password }` | `200` with the user, or `401` |
+| `POST /api/auth/logout/` | — | `{ "ok": true }` |
+
+Emails are lower-cased and used as the Django `username`; `name` is stored in `first_name`.
+
+### Saved jobs and searches (sign-in required)
+
+| Method & path | Body | Result |
+| --- | --- | --- |
+| `GET /api/me/favourites/` | — | `{ "favourite_jobs": [...] }`, newest first |
+| `POST /api/me/favourites/` | `{ adzuna_id, title, company, location, salary_min, salary_max, redirect_url }` | `201` (or `200` if already saved) with `favourite_job` |
+| `DELETE /api/me/favourites/<id>/` | — | `204`, or `404` if it isn't yours |
+| `GET /api/me/searches/` | — | `{ "saved_searches": [...] }`, newest first |
+| `POST /api/me/searches/` | `{ keyword, location }` (at least one) | `201` (or `200` if already saved) with `saved_search` |
+| `PATCH /api/me/searches/<id>/` | `{ "alert_enabled": true }` or `false` | The updated `saved_search` |
+| `DELETE /api/me/searches/<id>/` | — | `204`, or `404` if it isn't yours |
+
+> `alert_enabled` is stored but nothing sends alerts yet.
+
 ---
 
 ## Data model
 
-Defined in `schema.sql`. `users`, `favourite_jobs`, and `saved_searches` exist in the schema but aren't wired to Django models yet.
-
-| Table | Purpose |
-| --- | --- |
-| `job_postings` | Cached listings, upserted on `(source, external_id)` |
-| `demand_snapshots` | One row per skill per day: `count` of matching postings |
-| `users` | Email + password hash |
-| `favourite_jobs` | Saved jobs per user |
-| `saved_searches` | Saved keyword/location filters, with an alert flag |
+| Table | Created by | Purpose |
+| --- | --- | --- |
+| `job_postings` | `schema.sql` (`init_db`) | Cached listings, upserted on `(source, external_id)` |
+| `demand_snapshots` | `schema.sql` (`init_db`) | One row per skill per day: `count` of matching postings |
+| `auth_user` | Django `migrate` | Accounts (email as username) |
+| `favourite_jobs` | Django `migrate` | Saved jobs per user (unique per user + Adzuna id) |
+| `saved_searches` | Django `migrate` | Saved keyword/location filters, with an alert flag |
 
 
 ---

@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
+import { useAuth } from "../lib/auth";
 
 const navItems = [
   { href: "/Market-Overview", label: "Market overview", icon: "📈" },
@@ -11,6 +12,13 @@ const navItems = [
 
 export default function Sidebar() {
   const pathname = usePathname();
+  const router = useRouter();
+  const { user, loading, logout } = useAuth();
+
+  async function handleLogout() {
+    await logout();
+    router.push("/login");
+  }
 
   return (
     <aside className="w-[220px] min-h-screen bg-surface border-r border-line flex flex-col fixed top-0 left-0 z-30">
@@ -39,19 +47,31 @@ export default function Sidebar() {
       </nav>
 
       <div className="p-2 border-t border-line">
-        <Link
-          href="/login"
-          className={`flex items-center gap-[10px] px-[10px] py-[9px] rounded-lg text-sm ${
-            pathname === "/login"
-              ? "bg-accent-soft text-accent font-medium"
-              : "text-muted hover:bg-surface-2 hover:text-text"
-          }`}
-        >
-          <span className="text-base w-5 text-center">→</span> Login / Register
-        </Link>
-        <button className="flex items-center gap-[10px] px-[10px] py-[9px] rounded-lg text-sm text-muted hover:bg-surface-2 hover:text-text w-full text-left">
-          <span className="text-base w-5 text-center">↩</span> Log off
-        </button>
+        {loading ? null : user ? (
+          <>
+            <div className="px-[10px] py-[9px]">
+              <div className="text-sm font-medium truncate">{user.name}</div>
+              <div className="text-[11px] text-muted truncate">{user.email}</div>
+            </div>
+            <button
+              onClick={handleLogout}
+              className="flex items-center gap-[10px] px-[10px] py-[9px] rounded-lg text-sm text-muted hover:bg-surface-2 hover:text-text w-full text-left"
+            >
+              <span className="text-base w-5 text-center">↩</span> Log off
+            </button>
+          </>
+        ) : (
+          <Link
+            href="/login"
+            className={`flex items-center gap-[10px] px-[10px] py-[9px] rounded-lg text-sm ${
+              pathname === "/login"
+                ? "bg-accent-soft text-accent font-medium"
+                : "text-muted hover:bg-surface-2 hover:text-text"
+            }`}
+          >
+            <span className="text-base w-5 text-center">→</span> Login / Register
+          </Link>
+        )}
       </div>
     </aside>
   );

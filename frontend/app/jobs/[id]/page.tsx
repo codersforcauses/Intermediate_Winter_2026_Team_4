@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import Sidebar from "../../components/Sidebar";
+import { useFavourites } from "../../lib/favourites";
 
 type JobDetail = {
   id: string;
@@ -15,6 +16,8 @@ type JobDetail = {
   posted?: string;
   description?: string;
   url?: string;
+  salaryMin?: number | null;
+  salaryMax?: number | null;
 };
 
 export default function JobDetailPage() {
@@ -22,7 +25,19 @@ export default function JobDetailPage() {
   const [job, setJob] = useState<JobDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
-  const [saved, setSaved] = useState(false);
+  const router = useRouter();
+  const { isSaved, toggle } = useFavourites();
+  const [saveError, setSaveError] = useState("");
+
+  async function handleSave(current: JobDetail) {
+    setSaveError("");
+    try {
+      const result = await toggle(current);
+      if (result === "login") router.push("/login");
+    } catch (err) {
+      setSaveError(err instanceof Error ? err.message : "Could not update your saved jobs.");
+    }
+  }
 
   useEffect(() => {
     let cancelled = false;
@@ -133,12 +148,13 @@ export default function JobDetailPage() {
                     </a>
                   )}
                   <button
-                    onClick={() => setSaved((s) => !s)}
+                    onClick={() => handleSave(job)}
                     className="h-10 px-4 rounded-[10px] border border-line flex items-center justify-center gap-2"
                   >
-                    {saved ? "★" : "☆"} Save job
+                    {isSaved(job.id) ? "★ Saved" : "☆ Save job"}
                   </button>
                 </div>
+                {saveError && <div className="text-sm text-red-600 mt-3">{saveError}</div>}
               </div>
               );
             })()}

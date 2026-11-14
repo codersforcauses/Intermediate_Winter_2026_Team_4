@@ -1,7 +1,10 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Link from "next/link";
 import Sidebar from "../components/Sidebar";
+import { api } from "../lib/api";
+import { useAuth } from "../lib/auth";
 
 // ================================================================
 // Types — describe the shape of data coming from our Django API
@@ -25,6 +28,17 @@ type SavedSearch = {
   alert_enabled: boolean;
   created_at: string;
 };
+
+function PageShell({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="min-h-screen bg-bg flex">
+      <Sidebar />
+      <main className="ml-[220px] flex-1 px-12 py-10 flex flex-col gap-6 max-w-4xl mx-auto">
+        {children}
+      </main>
+    </div>
+  );
+}
 
 // ================================================================
 // Helper: turn "Yeona Kim" into "YK"
@@ -52,70 +66,103 @@ function formatSalary(min: number | null, max: number | null): string {
 // Main page
 // ================================================================
 export default function MePage() {
+  const { user, loading: authLoading } = useAuth();
   const [activeTab, setActiveTab] = useState<"jobs" | "searches">("jobs");
   const [favouriteJobs, setFavouriteJobs] = useState<FavouriteJob[]>([]);
   const [savedSearches, setSavedSearches] = useState<SavedSearch[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
 
-  // Hardcoded user for now — replace with real auth later
-  const mockUser = { name: "Yeona Kim", email: "yeonakim@email.com" };
-
-  // Fetch data from Django API when the page loads
+  // Load this user's saved jobs and searches once we know who is signed in.
   useEffect(() => {
-    async function fetchData() {
-      try {
-        const [jobsRes, searchesRes] = await Promise.all([
-          fetch("http://127.0.0.1:8000/api/me/favourites/"),
-          fetch("http://127.0.0.1:8000/api/me/searches/"),
-        ]);
+    if (!user) return;
+    let cancelled = false;
 
-        if (!jobsRes.ok || !searchesRes.ok) {
-          throw new Error("Failed to fetch data from server");
-        }
-
-        const jobsData = await jobsRes.json();
-        const searchesData = await searchesRes.json();
-
+    Promise.all([
+      api<{ favourite_jobs: FavouriteJob[] }>("me/favourites"),
+      api<{ saved_searches: SavedSearch[] }>("me/searches"),
+    ])
+      .then(([jobsData, searchesData]) => {
+        if (cancelled) return;
         setFavouriteJobs(jobsData.favourite_jobs);
         setSavedSearches(searchesData.saved_searches);
-      } catch {
-        setError("Could not load your data. Is the backend running?");
-      } finally {
-        setLoading(false);
-      }
-    }
+      })
+      .catch(() => {
+        if (!cancelled) setError("Could not load your data. Is the backend running?");
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
 
-    fetchData();
-  }, []);
+    return () => {
+      cancelled = true;
+    };
+  }, [user]);
 
   // ── Delete a favourite job ──────────────────────────────────────
   async function handleDeleteJob(id: number) {
+    setActionError(null);
     try {
-      await fetch(`http://127.0.0.1:8000/api/me/favourites/${id}/`, {
-        method: "DELETE",
-      });
-      // Remove from UI immediately after deleting
-      setFavouriteJobs((prev) =>
-        prev.filter((job) => job.favourite_jobs_id !== id)
-      );
+      await api(`me/favourites/${id}`, { method: "DELETE" });
+      setFavouriteJobs((prev) => prev.filter((job) => job.favourite_jobs_id !== id));
     } catch {
-      alert("Failed to remove job. Please try again.");
+      setActionError("Failed to remove job. Please try again.");
     }
   }
 
   // ── Delete a saved search ───────────────────────────────────────
   async function handleDeleteSearch(id: number) {
+    setActionError(null);
     try {
-      await fetch(`http://127.0.0.1:8000/api/me/searches/${id}/`, {
-        method: "DELETE",
+      await api(`me/searches/${id}`, { method: "DELETE" });
+      setSavedSearches((prev) => prev.filter((s) => s.saved_searches_id !== id));
+    } catch {
+      setActionError("Failed to remove search. Please try again.");
+    }
+  }
+
+  // ── Turn alerts on/off for a saved search ───────────────────────
+  async function handleToggleAlert(search: SavedSearch) {
+    setActionError(null);
+    try {
+      const data = await api<{ saved_search: SavedSearch }>(`me/searches/${search.saved_searches_id}`, {
+        method: "PATCH",
+        body: { alert_enabled: !search.alert_enabled },
       });
       setSavedSearches((prev) =>
-        prev.filter((s) => s.saved_searches_id !== id)
+        prev.map((s) => (s.saved_searches_id === search.saved_searches_id ? data.saved_search : s))
       );
     } catch {
-      alert("Failed to remove search. Please try again.");
+      setActionError("Failed to update alerts. Please try again.");
     }
+  }
+
+  if (authLoading) {
+    return (
+      <PageShell>
+        <p className="text-sm text-gray-500">Loading…</p>
+      </PageShell>
+    );
+  }
+
+  if (!user) {
+    return (
+      <PageShell>
+        <div className="bg-white border border-line rounded-xl p-7">
+          <h1 className="text-2xl font-bold text-accent">My profile</h1>
+          <p className="text-sm text-gray-500 mt-2">
+            Sign in to see your saved jobs and searches.
+          </p>
+          <Link
+            href="/login"
+            className="inline-block mt-4 h-10 leading-10 px-4 rounded-[10px] bg-accent text-white text-sm font-medium"
+          >
+            Sign in / Create account
+          </Link>
+        </div>
+      </PageShell>
+    );
   }
 
   return (
@@ -134,11 +181,11 @@ export default function MePage() {
       {/* Profile card */}
       <div className="bg-white border border-line rounded-xl p-7 flex items-center gap-5 flex-wrap">
         <div className="w-16 h-16 min-w-16 rounded-full bg-accent-soft text-accent flex items-center justify-center text-lg font-bold">
-          {getInitials(mockUser.name)}
+          {getInitials(user.name)}
         </div>
         <div className="flex flex-col gap-1 flex-1">
-          <p className="text-lg font-bold text-gray-900">{mockUser.name}</p>
-          <p className="text-sm text-gray-500">{mockUser.email}</p>
+          <p className="text-lg font-bold text-gray-900">{user.name}</p>
+          <p className="text-sm text-gray-500">{user.email}</p>
         </div>
         <div className="flex gap-3">
           <div className="bg-surface-2 rounded-xl px-6 py-4 text-center min-w-[90px]">
@@ -162,6 +209,9 @@ export default function MePage() {
       )}
       {error && (
         <p className="text-sm text-red-500">{error}</p>
+      )}
+      {actionError && (
+        <p className="text-sm text-red-500">{actionError}</p>
       )}
 
       {/* Tabs */}
@@ -254,9 +304,12 @@ export default function MePage() {
                           &ldquo;{search.keyword}&rdquo;
                           {search.location && ` in ${search.location}`}
                         </p>
-                        <p className="text-sm text-gray-500 mt-1">
+                        <button
+                          onClick={() => handleToggleAlert(search)}
+                          className="text-sm text-gray-500 mt-1 hover:text-gray-800"
+                        >
                           {search.alert_enabled ? "🔔 Alerts on" : "🔕 Alerts off"}
-                        </p>
+                        </button>
                       </div>
                       <button
                         onClick={() => handleDeleteSearch(search.saved_searches_id)}
