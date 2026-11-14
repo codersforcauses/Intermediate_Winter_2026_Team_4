@@ -20,6 +20,8 @@ function toDisplayJob(job) {
     salary,
     posted: formatPosted(job.posted_at),
     url: job.url,
+    salaryMin: job.salary_min ?? null,
+    salaryMax: job.salary_max ?? null,
   }
 }
 

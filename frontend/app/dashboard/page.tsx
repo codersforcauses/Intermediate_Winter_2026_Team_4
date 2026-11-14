@@ -2,7 +2,11 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import Sidebar from "../components/Sidebar";
+import { api, ApiError } from "../lib/api";
+import { useAuth } from "../lib/auth";
+import { useFavourites } from "../lib/favourites";
 
 type Job = {
   id: string;
@@ -12,6 +16,9 @@ type Job = {
   tag?: string;
   salary?: string;
   posted?: string;
+  salaryMin?: number | null;
+  salaryMax?: number | null;
+  url?: string;
 };
 
 // Builds a compact page list like [1, "…", 4, 5, 6, "…", 20] around the current page.
@@ -36,7 +43,10 @@ function getPageNumbers(current: number, total: number): (number | string)[] {
 export default function JobListingsPage() {
   const [jobs, setJobs] = useState<Job[]>([]);
   const [loading, setLoading] = useState(true);
-  const [favs, setFavs] = useState<Record<string, boolean>>({});
+  const router = useRouter();
+  const { user } = useAuth();
+  const { isSaved, toggle } = useFavourites();
+  const [notice, setNotice] = useState("");
 
   const [searchQuery, setSearchQuery] = useState("");
   const [locationFilter, setLocationFilter] = useState("");
@@ -79,8 +89,31 @@ export default function JobListingsPage() {
     fetchJobs(searchQuery, locationFilter, pageNum);
   }
 
-  function toggleFav(id: string) {
-    setFavs((s) => ({ ...s, [id]: !s[id] }));
+  async function toggleFav(job: Job) {
+    setNotice("");
+    try {
+      const result = await toggle(job);
+      if (result === "login") router.push("/login");
+    } catch (err) {
+      setNotice(err instanceof Error ? err.message : "Could not update your saved jobs.");
+    }
+  }
+
+  async function saveSearch() {
+    setNotice("");
+    if (!user) {
+      router.push("/login");
+      return;
+    }
+    try {
+      await api("me/searches", {
+        method: "POST",
+        body: { keyword: searchQuery, location: locationFilter },
+      });
+      setNotice("Search saved. Find it on your Me page.");
+    } catch (err) {
+      setNotice(err instanceof ApiError ? err.message : "Could not save this search.");
+    }
   }
 
   return (
@@ -95,7 +128,13 @@ export default function JobListingsPage() {
             <div className="text-sm text-muted">Search and explore job opportunities</div>
           </div>
 
-          <div className="flex gap-4 mb-6">
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              fetchJobs(searchQuery, locationFilter, 1);
+            }}
+            className="flex gap-4 mb-6"
+          >
             <input
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
@@ -108,13 +147,20 @@ export default function JobListingsPage() {
               className="h-10 rounded-[10px] border border-line bg-white px-3"
               placeholder="Location (e.g. Perth)"
             />
-            <button
-              onClick={() => fetchJobs(searchQuery, locationFilter, 1)}
-              className="h-10 px-4 rounded-[10px] bg-accent text-white"
-            >
+            <button type="submit" className="h-10 px-4 rounded-[10px] bg-accent text-white">
               Search
             </button>
-          </div>
+            <button
+              type="button"
+              onClick={saveSearch}
+              disabled={!searchQuery.trim() && !locationFilter.trim()}
+              className="h-10 px-4 rounded-[10px] border border-line bg-white disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              Save search
+            </button>
+          </form>
+
+          {notice && <div className="text-sm text-muted mb-4">{notice}</div>}
 
           {!loading && (
             <div className="text-sm text-muted mb-4 text-right">
@@ -144,11 +190,11 @@ export default function JobListingsPage() {
                     onClick={(e) => {
                       e.preventDefault();
                       e.stopPropagation();
-                      toggleFav(job.id);
+                      toggleFav(job);
                     }}
                     className="text-lg text-muted"
                   >
-                    {favs[job.id] ? "★" : "☆"}
+                    {isSaved(job.id) ? "★" : "☆"}
                   </button>
                   <span className="text-sm py-1 px-3 border border-line rounded-md">View ↗</span>
                 </div>

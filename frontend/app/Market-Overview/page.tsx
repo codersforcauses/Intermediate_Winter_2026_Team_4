@@ -174,7 +174,7 @@ export default function MarketOverviewPage() {
 
   // useEffect runs once when the page loads. We fetch data from our Django API.
   useEffect(() => {
-    fetch("http://127.0.0.1:8000/api/market-overview/")
+    fetch("/django/market-overview")
       .then((res) => {
         if (!res.ok) throw new Error("Failed to load data");
         return res.json();
