@@ -3,28 +3,78 @@
 import { useState, useEffect } from "react";
 import Sidebar from "@/app/components/Sidebar";
 
-const SKILLS = ["All", "#Python", "#Java", "#JavaScript", "#React", "#Django"];
+const ALL = "All";
+const LINE_COLORS = ["#0d3880", "#f59e0b", "#06b6d4", "#10b981", "#9ca3af"];
+const MAX_LINES_WHEN_ALL = 5;
+const LOW_SAMPLE = 3;
 
-const LINE_COLORS = ["#0d3880", "#9ca3af", "#f59e0b", "#06b6d4", "#10b981"];
-
-type SalaryItem = { skill: string; salary: number };
+type SalaryItem = { skill: string; salary: number; count: number };
 type DemandPoint = { date: string | null; count: number };
 type DemandData = { [skill: string]: DemandPoint[] };
+type LocationItem = { location: string; count: number };
+type MarketData = {
+  skills: string[];
+  salary_by_skill: SalaryItem[];
+  demand_by_skill: DemandData;
+  top_locations: LocationItem[];
+  posting_count: number;
+};
 
-function SkillFilter({
-  active,
-  onSelect,
-}: {
-  active: string;
-  onSelect: (skill: string) => void;
-}) {
+const money = (n: number) => `$${n.toLocaleString("en-AU")}`;
+
+function formatDate(iso: string | null): string {
+  if (!iso) return "";
+  const d = new Date(`${iso}T00:00:00`);
+  return Number.isNaN(d.getTime())
+    ? iso
+    : d.toLocaleDateString("en-AU", { day: "numeric", month: "short" });
+}
+
+// Rounds a maximum up to a "nice" axis limit, e.g. 387 -> 400, 1240 -> 2000.
+function niceMax(n: number): number {
+  if (n <= 0) return 1;
+  const magnitude = 10 ** Math.floor(Math.log10(n));
+  return Math.ceil(n / magnitude) * magnitude;
+}
+
+function Card({ title, note, children }: { title: string; note?: string; children: React.ReactNode }) {
+  return (
+    <div className="bg-surface rounded-2xl p-5">
+      <p className="text-sm font-semibold mb-4">{title}</p>
+      {children}
+      {note && <p className="text-[11px] text-muted mt-4">{note}</p>}
+    </div>
+  );
+}
+
+function Empty({ children }: { children: React.ReactNode }) {
+  return <div className="h-32 flex items-center justify-center text-center text-muted text-sm px-4">{children}</div>;
+}
+
+// A row of "label | bar | value", used by the salary, snapshot and location charts.
+function BarRow({ label, value, fraction, detail }: { label: string; value: string; fraction: number; detail?: string }) {
+  return (
+    <div className="flex items-center gap-3 text-sm">
+      <span className="w-32 shrink-0 truncate" title={label}>
+        {label}
+      </span>
+      <div className="flex-1 h-3 bg-surface-2 rounded">
+        <div className="h-3 rounded bg-accent" style={{ width: `${Math.max(2, Math.round(fraction * 100))}%` }} />
+      </div>
+      <span className="w-36 shrink-0 text-right text-xs">
+        {value}
+        {detail && <span className="text-muted"> {detail}</span>}
+      </span>
+    </div>
+  );
+}
+
+function SkillFilter({ skills, active, onSelect }: { skills: string[]; active: string; onSelect: (skill: string) => void }) {
   return (
     <div>
-      <p className="text-[11px] tracking-widest uppercase text-muted font-semibold mb-3">
-        Filter by skill
-      </p>
+      <p className="text-[11px] tracking-widest uppercase text-muted font-semibold mb-3">Filter by skill</p>
       <div className="flex flex-wrap gap-2">
-        {SKILLS.map((skill) => (
+        {[ALL, ...skills].map((skill) => (
           <button
             key={skill}
             onClick={() => onSelect(skill)}
@@ -34,7 +84,7 @@ function SkillFilter({
                 : "bg-surface text-muted border-line hover:border-accent hover:text-accent"
             }`}
           >
-            {skill}
+            {skill === ALL ? skill : `#${skill}`}
           </button>
         ))}
       </div>
@@ -42,167 +92,202 @@ function SkillFilter({
   );
 }
 
-function SalaryChart({ data }: { data: SalaryItem[] }) {
+function SalaryChart({ data, active }: { data: SalaryItem[]; active: string }) {
+  const note =
+    "Average of postings that list a salary (Adzuna doesn't show one on most). The number in brackets is how many postings each average is based on.";
+
   if (data.length === 0) {
     return (
-      <div className="bg-surface rounded-2xl p-5">
-        <p className="text-sm font-semibold mb-4">Average salary by skill</p>
-        <div className="h-32 flex items-center justify-center text-muted text-sm">
-          No data for this filter
-        </div>
-      </div>
+      <Card title="Average salary by skill" note={note}>
+        <Empty>
+          {active === ALL
+            ? "No salary data yet. Run fetch_jobs to collect some."
+            : `No postings with a listed salary for #${active} yet.`}
+        </Empty>
+      </Card>
     );
   }
 
   const max = Math.max(...data.map((d) => d.salary));
-
   return (
-    <div className="bg-surface rounded-2xl p-5">
-      <p className="text-sm font-semibold mb-4">Average salary by skill</p>
-      <div className="flex items-end justify-around" style={{ height: 120 }}>
-        {data.map(({ skill, salary }) => (
-          <div key={skill} className="flex flex-col items-center gap-1" style={{ width: 80 }}>
-            <span className="text-[10px] text-muted leading-none">
-              ${salary.toLocaleString()}
-            </span>
-            <div
-              className="w-full rounded-t bg-accent"
-              style={{ height: Math.round((salary / max) * 80) }}
-            />
-            <span className="text-[10px] text-muted text-center leading-tight">{skill}</span>
-          </div>
+    <Card title="Average salary by skill" note={note}>
+      <div className="space-y-3">
+        {data.map(({ skill, salary, count }) => (
+          <BarRow
+            key={skill}
+            label={`#${skill}`}
+            value={money(salary)}
+            detail={`(${count}${count < LOW_SAMPLE ? ", low sample" : ""})`}
+            fraction={salary / max}
+          />
         ))}
       </div>
-    </div>
+    </Card>
   );
 }
 
-function DemandChart({ demand }: { demand: DemandData }) {
-  const skills = Object.keys(demand);
+function DemandChart({ demand, active }: { demand: DemandData; active: string }) {
+  // Latest count per skill, highest first.
+  const series = Object.entries(demand)
+    .filter(([, points]) => points.length > 0)
+    .map(([skill, points]) => ({ skill, points, latest: points[points.length - 1].count }))
+    .sort((a, b) => b.latest - a.latest);
 
-  if (skills.length === 0) {
+  if (series.length === 0) {
     return (
-      <div className="bg-surface rounded-2xl p-5">
-        <p className="text-sm font-semibold mb-4">Demand trend</p>
-        <div className="h-32 flex items-center justify-center text-muted text-sm">
-          No trend data for this filter
-        </div>
-      </div>
+      <Card title="Demand trend">
+        <Empty>{active === ALL ? "No demand data yet. Run fetch_jobs to record a snapshot." : `No demand data for #${active} yet.`}</Empty>
+      </Card>
     );
   }
 
-  // Find the highest count across all skills, so all lines share the same scale.
-  let maxCount = 1;
-  skills.forEach((skill) => {
-    demand[skill].forEach((p) => {
-      if (p.count > maxCount) maxCount = p.count;
-    });
-  });
+  const hasTrend = series.some((s) => s.points.length >= 2);
 
-  // Build an SVG polyline string for each skill.
-  const lines = skills.map((skill, i) => {
-    const points = demand[skill];
-    const step = points.length > 1 ? 200 / (points.length - 1) : 0;
-    const coords = points
-      .map((p, idx) => {
-        const x = idx * step;
-        const y = 100 - (p.count / maxCount) * 90;
-        return `${x},${y}`;
-      })
-      .join(" ");
-    return { skill, color: LINE_COLORS[i % LINE_COLORS.length], points: coords };
-  });
+  // With a single day of data there is nothing to draw a line through, so show
+  // the latest count per skill instead.
+  if (!hasTrend) {
+    const max = Math.max(...series.map((s) => s.latest));
+    return (
+      <Card
+        title="Current demand (job postings)"
+        note="Trend lines appear once snapshots from at least two different days exist. Run fetch_jobs once a day to build the history."
+      >
+        <div className="space-y-3">
+          {series.map(({ skill, latest }) => (
+            <BarRow key={skill} label={`#${skill}`} value={latest.toLocaleString("en-AU")} fraction={latest / max} />
+          ))}
+        </div>
+      </Card>
+    );
+  }
+
+  const shown = active === ALL ? series.slice(0, MAX_LINES_WHEN_ALL) : series;
+
+  // Chart geometry (SVG user units).
+  const W = 420, H = 210, L = 46, R = 14, T = 12, B = 30;
+  const innerW = W - L - R;
+  const innerH = H - T - B;
+
+  const times = shown.flatMap((s) => s.points.map((p) => (p.date ? Date.parse(p.date) : NaN))).filter((t) => !Number.isNaN(t));
+  const minT = Math.min(...times);
+  const maxT = Math.max(...times);
+  const yMax = niceMax(Math.max(...shown.flatMap((s) => s.points.map((p) => p.count))));
+  const x = (t: number) => (maxT === minT ? L + innerW / 2 : L + ((t - minT) / (maxT - minT)) * innerW);
+  const y = (count: number) => T + innerH - (count / yMax) * innerH;
+  const ticks = [0, yMax / 2, yMax];
 
   return (
-    <div className="bg-surface rounded-2xl p-5">
-      <p className="text-sm font-semibold mb-3">Demand trend</p>
-      <svg viewBox="0 0 200 100" className="w-full h-32" preserveAspectRatio="none">
-        {lines.map((line) => (
-          <polyline
-            key={line.skill}
-            points={line.points}
-            fill="none"
-            stroke={line.color}
-            strokeWidth="2.5"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
+    <Card
+      title="Demand trend (job postings)"
+      note={active === ALL && series.length > MAX_LINES_WHEN_ALL ? `Showing the top ${MAX_LINES_WHEN_ALL} skills. Pick a skill above to see the others.` : undefined}
+    >
+      <svg viewBox={`0 0 ${W} ${H}`} className="w-full" role="img" aria-label="Job postings per skill over time">
+        {ticks.map((tick) => (
+          <g key={tick}>
+            <line x1={L} x2={W - R} y1={y(tick)} y2={y(tick)} stroke="#dcdfd8" strokeWidth="1" />
+            <text x={L - 6} y={y(tick) + 3} textAnchor="end" fontSize="10" fill="#6b7169">
+              {tick.toLocaleString("en-AU")}
+            </text>
+          </g>
         ))}
+        <text x={L} y={H - 8} textAnchor="start" fontSize="10" fill="#6b7169">
+          {formatDate(new Date(minT).toISOString().slice(0, 10))}
+        </text>
+        {maxT !== minT && (
+          <text x={W - R} y={H - 8} textAnchor="end" fontSize="10" fill="#6b7169">
+            {formatDate(new Date(maxT).toISOString().slice(0, 10))}
+          </text>
+        )}
+        {shown.map((s, i) => {
+          const color = LINE_COLORS[i % LINE_COLORS.length];
+          const pts = s.points.filter((p) => p.date).map((p) => ({ cx: x(Date.parse(p.date as string)), cy: y(p.count) }));
+          return (
+            <g key={s.skill}>
+              <polyline
+                points={pts.map((p) => `${p.cx},${p.cy}`).join(" ")}
+                fill="none"
+                stroke={color}
+                strokeWidth="2.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+              {pts.map((p, j) => (
+                <circle key={j} cx={p.cx} cy={p.cy} r="3" fill={color} />
+              ))}
+            </g>
+          );
+        })}
       </svg>
       <div className="flex flex-wrap gap-3 mt-2">
-        {lines.map((line) => (
-          <div key={line.skill} className="flex items-center gap-1.5 text-xs text-muted">
-            <span
-              className="inline-block w-4 rounded"
-              style={{ height: 2, backgroundColor: line.color }}
-            />
-            {line.skill}
+        {shown.map((s, i) => (
+          <div key={s.skill} className="flex items-center gap-1.5 text-xs text-muted">
+            <span className="inline-block w-4 rounded" style={{ height: 2, backgroundColor: LINE_COLORS[i % LINE_COLORS.length] }} />
+            #{s.skill} · {s.latest.toLocaleString("en-AU")}
           </div>
         ))}
       </div>
-    </div>
+    </Card>
   );
 }
 
-function JobLocations() {
+function TopLocations({ locations, total }: { locations: LocationItem[]; total: number }) {
+  const note = `Based on the ${total.toLocaleString("en-AU")} job postings cached from searches, so it reflects what has been searched for, not every job in the market.`;
+
+  if (locations.length === 0) {
+    return (
+      <Card title="Top job locations" note={note}>
+        <Empty>No location data yet.</Empty>
+      </Card>
+    );
+  }
+
+  const max = Math.max(...locations.map((l) => l.count));
   return (
-    <div className="bg-surface rounded-2xl p-5">
-      <p className="text-sm font-semibold mb-4">Job locations</p>
-      <div
-        className="h-36 rounded-lg flex items-center justify-center text-xs text-muted"
-        style={{
-          backgroundImage:
-            "repeating-linear-gradient(45deg, #dcdfd8 0, #dcdfd8 1px, transparent 0, transparent 50%)",
-          backgroundSize: "8px 8px",
-          backgroundColor: "var(--color-surface-2)",
-        }}
-      >
-        Map view — pins per posting + region heat
+    <Card title="Top job locations" note={note}>
+      <div className="space-y-3">
+        {locations.map(({ location, count }) => (
+          <BarRow
+            key={location}
+            label={location}
+            value={count.toLocaleString("en-AU")}
+            detail={total > 0 ? `(${Math.round((count / total) * 100)}%)` : undefined}
+            fraction={count / max}
+          />
+        ))}
       </div>
-    </div>
+    </Card>
   );
 }
 
 export default function MarketOverviewPage() {
-  const [activeSkill, setActiveSkill] = useState("All");
-
-  // State to hold data fetched from the backend.
-  const [salaryData, setSalaryData] = useState<SalaryItem[]>([]);
-  const [demandData, setDemandData] = useState<DemandData>({});
-  const [loading, setLoading] = useState(true);
+  const [activeSkill, setActiveSkill] = useState(ALL);
+  const [data, setData] = useState<MarketData | null>(null);
   const [error, setError] = useState("");
 
-  // useEffect runs once when the page loads. We fetch data from our Django API.
   useEffect(() => {
+    let cancelled = false;
     fetch("/django/market-overview")
       .then((res) => {
-        if (!res.ok) throw new Error("Failed to load data");
+        if (!res.ok) throw new Error("Failed to load market data. Is the backend running?");
         return res.json();
       })
-      .then((data) => {
-        setSalaryData(data.salary_by_skill || []);
-        setDemandData(data.demand_by_skill || {});
-        setLoading(false);
+      .then((json: MarketData) => {
+        if (!cancelled) setData(json);
       })
-      .catch((err) => {
-        setError(err.message);
-        setLoading(false);
+      .catch((err: Error) => {
+        if (!cancelled) setError(err.message);
       });
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
-  // Filter salary data based on the selected skill pill.
-  const salaryToShow =
-    activeSkill === "All"
-      ? salaryData.slice(0, 5)
-      : salaryData.filter((d) => `#${d.skill}` === activeSkill);
-
-  // Filter demand data based on the selected skill pill.
-  const demandToShow: DemandData =
-    activeSkill === "All"
-      ? demandData
-      : Object.fromEntries(
-          Object.entries(demandData).filter(([skill]) => `#${skill}` === activeSkill)
-        );
+  const salaryToShow = data ? (activeSkill === ALL ? data.salary_by_skill : data.salary_by_skill.filter((d) => d.skill === activeSkill)) : [];
+  const demandToShow: DemandData = data
+    ? activeSkill === ALL
+      ? data.demand_by_skill
+      : Object.fromEntries(Object.entries(data.demand_by_skill).filter(([skill]) => skill === activeSkill))
+    : {};
 
   return (
     <div className="flex h-screen overflow-hidden bg-bg">
@@ -210,23 +295,23 @@ export default function MarketOverviewPage() {
 
       <main className="flex-1 overflow-y-auto p-8 ml-[220px]">
         <h1 className="text-3xl font-bold text-text">Market overview</h1>
-        <p className="text-muted mt-1 mb-8 text-sm">
-          Insights into salary trends, skill demand, and job locations
-        </p>
+        <p className="text-muted mt-1 mb-8 text-sm">Insights into salary trends, skill demand, and job locations</p>
 
-        {loading && <p className="text-muted text-sm">Loading data…</p>}
+        {!data && !error && <p className="text-muted text-sm">Loading data…</p>}
         {error && <p className="text-red-500 text-sm">Error: {error}</p>}
 
-        {!loading && !error && (
+        {data && (
           <>
             <div className="mb-6">
-              <SkillFilter active={activeSkill} onSelect={setActiveSkill} />
+              <SkillFilter skills={data.skills} active={activeSkill} onSelect={setActiveSkill} />
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <SalaryChart data={salaryToShow} />
-              <DemandChart demand={demandToShow} />
-              <JobLocations />
+            <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+              <SalaryChart data={salaryToShow} active={activeSkill} />
+              <DemandChart demand={demandToShow} active={activeSkill} />
+              <div className="xl:col-span-2">
+                <TopLocations locations={data.top_locations} total={data.posting_count} />
+              </div>
             </div>
           </>
         )}

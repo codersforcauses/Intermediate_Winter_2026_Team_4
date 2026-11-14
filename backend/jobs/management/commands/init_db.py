@@ -16,5 +16,15 @@ class Command(BaseCommand):
 
         with connection.cursor() as cursor:
             cursor.connection.executescript(sql)
+            self._add_missing_columns(cursor)
 
         self.stdout.write(self.style.SUCCESS(f'Applied {schema.name}'))
+
+    @staticmethod
+    def _add_missing_columns(cursor):
+        """CREATE TABLE IF NOT EXISTS won't add columns introduced after a
+        table already exists, so add those to older local databases here."""
+        existing = {row[1] for row in cursor.execute('PRAGMA table_info(demand_snapshots)')}
+        for column in ('avg_salary', 'salary_samples'):
+            if column not in existing:
+                cursor.execute(f'ALTER TABLE demand_snapshots ADD COLUMN {column} INTEGER')

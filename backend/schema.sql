@@ -11,7 +11,9 @@ CREATE TABLE IF NOT EXISTS demand_snapshots (
     skill                 TEXT,
     count                 INTEGER,
     captured_at           DATE,
-    last_updated          DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+    last_updated          DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    avg_salary            INTEGER,  -- average annual salary of the salaried postings in that day's search
+    salary_samples        INTEGER   -- how many postings that average is based on
 );
 
 CREATE TABLE IF NOT EXISTS job_postings (

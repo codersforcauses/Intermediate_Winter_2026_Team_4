@@ -2,23 +2,10 @@ import datetime
 
 from django.core.management.base import BaseCommand
 
+from jobs.market import posting_salary
 from jobs.models import DemandSnapshot
 from jobs.services import AdzunaError, save_jobs, search_adzuna_jobs
-
-# Skills tracked for the market overview page. Extend as needed.
-TRACKED_SKILLS = [
-    'Python',
-    'Java',
-    'JavaScript',
-    'React',
-    'SQL',
-    'Data Analyst',
-    'DevOps',
-    'Cloud',
-    'Machine Learning',
-    '.NET',
-]
-
+from jobs.skills import TRACKED_SKILLS
 
 class Command(BaseCommand):
     """Batch-fetch jobs for tracked skills and record daily demand snapshots.
@@ -58,9 +45,21 @@ class Command(BaseCommand):
                 continue
 
             save_jobs(results)
+
+            salaries = [
+                s for s in (posting_salary(job['salary_min'], job['salary_max']) for job in results)
+                if s is not None
+            ]
             DemandSnapshot.objects.update_or_create(
                 skill=skill,
                 captured_at=captured_at,
-                defaults={'count': total_count},
+                defaults={
+                    'count': total_count,
+                    'avg_salary': round(sum(salaries) / len(salaries)) if salaries else None,
+                    'salary_samples': len(salaries),
+                },
             )
-            self.stdout.write(self.style.SUCCESS(f'{skill}: {total_count} jobs matching ({len(results)} saved)'))
+            self.stdout.write(self.style.SUCCESS(
+                f'{skill}: {total_count} jobs matching ({len(results)} saved, '
+                f'{len(salaries)} with a usable salary)'
+            ))
