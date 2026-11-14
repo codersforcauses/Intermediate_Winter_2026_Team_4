@@ -6,11 +6,11 @@ from django.core.cache import cache
 from django.http import JsonResponse
 from django.views.decorators.http import require_GET
 
-from .models import JobPosting
+from .market import salary_by_skill, top_locations
+from .models import DemandSnapshot, JobPosting
 from .services import AdzunaError, save_jobs, search_adzuna_jobs
+from .skills import TRACKED_SKILLS
 
-from django.db.models import Avg
-from .models import DemandSnapshot
 
 
 logger = logging.getLogger(__name__)
@@ -117,39 +117,44 @@ def job_detail(request, external_id):
 
 @require_GET
 def market_overview(request):
-    salary_rows=(
-        JobPosting.objects
-        .exclude(salary_min__isnull=True, salary_max__isnull=True)
-        .values('category')
-        .annotate(avg_min=Avg('salary_min'), avg_max=Avg("salary_max"))
+    """Data for the market overview page, built from the cached postings and
+    the daily demand snapshots recorded by `fetch_jobs`."""
+    postings = list(
+        JobPosting.objects.values('title', 'description', 'salary_min', 'salary_max', 'location')
     )
-
-    salary_by_skill = []
-    for row in salary_rows:
-        category = row['category'] or 'Other'
-        avg_min = row['avg_min'] or 0
-        avg_max = row['avg_max'] or 0
-        avg_salary = round((avg_min + avg_max) / 2)
-        if avg_salary > 0:
-            salary_by_skill.append({'skill': category, 'salary': avg_salary})
 
     demand_rows = (
         DemandSnapshot.objects
         .order_by('skill', 'captured_at')
-        .values('skill', 'count', 'captured_at')
+        .values('skill', 'count', 'captured_at', 'avg_salary', 'salary_samples')
     )
 
     demand_by_skill = {}
+    latest_salary = {}
     for row in demand_rows:
-        skill = row['skill']
-        if skill not in demand_by_skill:
-            demand_by_skill[skill] = []
-        demand_by_skill[skill].append({
+        if row['avg_salary']:
+            # Rows are ordered by date, so the last one seen per skill is the latest.
+            latest_salary[row['skill']] = {
+                'skill': row['skill'],
+                'salary': row['avg_salary'],
+                'count': row['salary_samples'] or 0,
+            }
+        demand_by_skill.setdefault(row['skill'], []).append({
             'date': row['captured_at'].isoformat() if row['captured_at'] else None,
             'count': row['count'] or 0,
         })
 
+    if latest_salary:
+        salaries = sorted(latest_salary.values(), key=lambda row: row['salary'], reverse=True)
+    else:
+        # No snapshot has salary data yet (fetch_jobs hasn't run since this was
+        # added), so estimate from whichever cached postings mention each skill.
+        salaries = salary_by_skill(postings, TRACKED_SKILLS)
+
     return JsonResponse({
-        'salary_by_skill': salary_by_skill,
+        'skills': TRACKED_SKILLS,
+        'salary_by_skill': salaries,
         'demand_by_skill': demand_by_skill,
+        'top_locations': top_locations(p['location'] for p in postings),
+        'posting_count': len(postings),
     })

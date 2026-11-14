@@ -1,4 +1,5 @@
 import logging
+import re
 
 import requests
 from django.conf import settings
@@ -9,6 +10,27 @@ logger = logging.getLogger(__name__)
 
 ADZUNA_BASE_URL = 'https://api.adzuna.com/v1/api/jobs'
 ADZUNA_SOURCE = 'adzuna'
+
+
+# Searching for "Western Australia" also matches Washington State ("WA"), and
+# Adzuna files those US jobs under a small WA locality. They would distort
+# location counts and salary averages, so they are dropped.
+_US_WASHINGTON = re.compile(
+    r'(?<![A-Za-z])(Redmond|Seattle|Bellevue|Kirkland|Tacoma|Spokane|Bothell|Renton|Everett|Olympia|Vancouver)'
+    r',?\s+(WA|Washington)(?![A-Za-z])'
+)
+
+
+# Adzuna geocodes a bare "WA" to this tiny locality near Albany, so nearly every
+# posting filed here is really a US job (Amazon, Meta, CrowdStrike, ...).
+_MISLOCATED_AS_WA = ('Marbelup',)
+
+
+def is_us_washington_posting(title, description, location=''):
+    """True for postings in Washington State, USA rather than Western Australia."""
+    if (location or '').startswith(_MISLOCATED_AS_WA):
+        return True
+    return bool(_US_WASHINGTON.search(f'{title or ""} {description or ""}'))
 
 
 class AdzunaError(Exception):
@@ -39,7 +61,10 @@ def search_adzuna_jobs(keyword='', location='', page=1, results_per_page=20):
         raise AdzunaError(str(exc)) from exc
 
     payload = response.json()
-    results = [_normalize_adzuna_result(item) for item in payload.get('results', [])]
+    results = [
+        job for job in map(_normalize_adzuna_result, payload.get('results', []))
+        if not is_us_washington_posting(job['title'], job['description'], job['location'])
+    ]
     total_count = payload.get('count', len(results))
     return results, total_count
 

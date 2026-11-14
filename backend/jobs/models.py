@@ -33,6 +33,8 @@ class DemandSnapshot(models.Model):
     count = models.IntegerField(null=True, blank=True)
     captured_at = models.DateField(null=True, blank=True)
     last_updated = models.DateTimeField(auto_now=True)
+    avg_salary = models.IntegerField(null=True, blank=True)
+    salary_samples = models.IntegerField(null=True, blank=True)
 
     class Meta:
         # The table is created by schema.sql, not Django migrations.

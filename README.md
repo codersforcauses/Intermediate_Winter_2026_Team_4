@@ -19,7 +19,7 @@ JobRader pulls job listings from the [Adzuna API](https://developer.adzuna.com/)
 
 ## Features
 
-- **Market overview** (`/Market-Overview`) — average salary by skill and a demand-over-time line chart, filterable by skill.
+- **Market overview** (`/Market-Overview`) — average salary by skill, a demand-over-time line chart (axes, dates and a legend; it shows the latest counts as bars until two days of snapshots exist) and the top job locations, filterable by skill.
 - **Job listings** (`/dashboard`) — free-text keyword and location search with paginated results, backed by a 30-minute cache so we don't burn through the Adzuna rate limit.
 - **Job detail** (`/jobs/[id]`) — full description for a single posting, read from the local cache.
 - **Me** (`/me`) — your saved jobs and saved searches (with an alerts on/off flag). Requires sign-in.
@@ -90,7 +90,7 @@ Create the database. The `jobs` models are declared `managed = False`, so `migra
 
 ```bash
 python manage.py migrate          # auth, sessions, saved jobs/searches, admin
-python manage.py init_db          # job_postings + demand_snapshots (safe to re-run)
+python manage.py init_db          # job_postings + demand_snapshots (safe to re-run; also adds new columns to older databases)
 python manage.py test             # optional: run the backend tests
 python manage.py runserver        # http://127.0.0.1:8000
 ```
@@ -122,7 +122,9 @@ python manage.py fetch_jobs --location "Perth" --date 2026-07-01
 | `--location` | `Western Australia` | Passed to Adzuna for every tracked skill |
 | `--date` | today | Labels the snapshot; Adzuna only returns current listings, so this backdates the label, not the data |
 
-Tracked skills live in `TRACKED_SKILLS` at the top of `fetch_jobs.py`. In production this should run once a day on cron or Celery beat — never on a page load.
+Tracked skills live in `TRACKED_SKILLS` in `backend/jobs/skills.py`; the skill pills on the market page come from that same list. Each run also stores the average salary of that skill's salaried postings on the snapshot (`avg_salary`, `salary_samples`). In production this should run once a day on cron or Celery beat — never on a page load. Trend lines need snapshots from at least two different days.
+
+> **Data quality:** Adzuna lists a salary on only a minority of IT postings, so salary averages often rest on a handful of postings (the chart shows the count and flags low samples). Searching "Western Australia" also matches Washington State ("WA"), and Adzuna files those US jobs under the WA locality "Marbelup"; `jobs/services.py` drops them before they are cached.
 
 ---
 
@@ -190,14 +192,20 @@ Aggregates for the charts.
 
 ```json
 {
-  "salary_by_skill": [{ "skill": "IT Jobs", "salary": 105000 }],
+  "skills": ["Python", "Java", "..."],
+  "salary_by_skill": [{ "skill": "SQL", "salary": 114770, "count": 5 }],
   "demand_by_skill": {
     "Python": [{ "date": "2026-07-29", "count": 412 }]
-  }
+  },
+  "top_locations": [{ "location": "Perth", "count": 165 }],
+  "posting_count": 293
 }
 ```
 
-`salary_by_skill` averages the midpoint of `salary_min`/`salary_max` grouped by Adzuna category. `demand_by_skill` is the accumulated `demand_snapshots` history, grouped by skill and ordered by date.
+- `skills` is the tracked-skills list (drives the filter pills).
+- `salary_by_skill` is each skill's average annual salary from its latest snapshot, highest first; `count` is how many salaried postings it is based on. Salaries outside $30k–$400k are ignored as bad data. If no snapshot has salary data yet (`fetch_jobs` hasn't run since this was added), it falls back to matching skills against the cached postings' title and description.
+- `demand_by_skill` is the accumulated `demand_snapshots` history, grouped by skill and ordered by date.
+- `top_locations` are the most common locations among cached postings, grouped by city/region; `posting_count` is how many postings that covers.
 
 ### Auth
 
@@ -232,7 +240,7 @@ Emails are lower-cased and used as the Django `username`; `name` is stored in `f
 | Table | Created by | Purpose |
 | --- | --- | --- |
 | `job_postings` | `schema.sql` (`init_db`) | Cached listings, upserted on `(source, external_id)` |
-| `demand_snapshots` | `schema.sql` (`init_db`) | One row per skill per day: `count` of matching postings |
+| `demand_snapshots` | `schema.sql` (`init_db`) | One row per skill per day: `count` of matching postings, plus `avg_salary` / `salary_samples` |
 | `auth_user` | Django `migrate` | Accounts (email as username) |
 | `favourite_jobs` | Django `migrate` | Saved jobs per user (unique per user + Adzuna id) |
 | `saved_searches` | Django `migrate` | Saved keyword/location filters, with an alert flag |
